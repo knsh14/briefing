@@ -15,9 +15,18 @@ test("rewriteHref leaves other links alone", () => {
   assert.equal(rewriteHref("../arxiv/notes.md"), "../arxiv/notes.md");
 });
 
+test("rewriteHref preserves a fragment on sibling digest links", () => {
+  assert.equal(rewriteHref("../github-digest/2026-08-11.md#sec"), "/2026-08-11/github/#sec");
+  assert.equal(rewriteHref("../arxiv/2026-08-11.md#x"), "/2026-08-11/arxiv/#x");
+});
+
 test("rewriteSrc maps icons/ to /icons/", () => {
   assert.equal(rewriteSrc("icons/git-pull-request.svg"), "/icons/git-pull-request.svg");
   assert.equal(rewriteSrc("https://example.com/a.png"), "https://example.com/a.png");
+});
+
+test("rewriteSrc leaves path traversal outside icons/ unchanged", () => {
+  assert.equal(rewriteSrc("icons/../x.svg"), "icons/../x.svg");
 });
 
 test("isExternal detects http(s) links", () => {
@@ -25,6 +34,10 @@ test("isExternal detects http(s) links", () => {
   assert.ok(isExternal("http://example.com"));
   assert.ok(!isExternal("/2026-08-11/"));
   assert.ok(!isExternal("mailto:a@b"));
+});
+
+test("isExternal is case-insensitive on the scheme", () => {
+  assert.ok(isExternal("HTTPS://example.com"));
 });
 
 test("renderMarkdown rewrites links, adds attributes to external links, rewrites images", () => {

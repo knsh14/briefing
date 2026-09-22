@@ -1,13 +1,13 @@
 import MarkdownIt from "markdown-it";
 
-const SIBLING_RE = /^\.\.\/(arxiv|github|github-digest)\/(\d{4}-\d{2}-\d{2})\.md$/;
-const ICON_RE = /^icons\/(.+)$/;
+const SIBLING_RE = /^\.\.\/(arxiv|github|github-digest)\/(\d{4}-\d{2}-\d{2})\.md(#.*)?$/;
+const ICON_RE = /^icons\/([\w.-]+\.svg)$/;
 
 export function rewriteHref(href) {
   const m = SIBLING_RE.exec(href);
   if (!m) return href;
   const kind = m[1] === "arxiv" ? "arxiv" : "github";
-  return `/${m[2]}/${kind}/`;
+  return `/${m[2]}/${kind}/${m[3] ?? ""}`;
 }
 
 export function rewriteSrc(src) {
@@ -16,7 +16,7 @@ export function rewriteSrc(src) {
 }
 
 export function isExternal(href) {
-  return /^https?:\/\//.test(href);
+  return /^https?:\/\//i.test(href);
 }
 
 export function createMarkdown() {

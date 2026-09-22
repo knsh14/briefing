@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DATE_RE, readSeries, buildDays } from "../lib/load.js";
@@ -15,8 +15,9 @@ test("DATE_RE matches only YYYY-MM-DD.md", () => {
   assert.ok(!DATE_RE.test("icons"));
 });
 
-test("readSeries returns only date files with their text", () => {
+test("readSeries returns only date files with their text", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "briefing-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, "2026-08-11.md"), "# a");
   writeFileSync(join(dir, "2026-08-10.md"), "# b");
   writeFileSync(join(dir, "SKILL.md"), "skip");
