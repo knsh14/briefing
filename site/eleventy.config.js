@@ -3,6 +3,11 @@ export default function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "../github/icons": "icons" });
   eleventyConfig.addPassthroughCopy("src/style.css");
 
+  eleventyConfig.addWatchTarget("../daily/");
+  eleventyConfig.addWatchTarget("../arxiv/");
+  eleventyConfig.addWatchTarget("../github/");
+  eleventyConfig.addWatchTarget("./lib/");
+
   return {
     dir: {
       input: "src",

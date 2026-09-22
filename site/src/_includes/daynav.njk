@@ -1,14 +1,13 @@
-{# site/src/_includes/daynav.njk #}
 {# 期待する変数: day, current ("daily" | "arxiv" | "github") #}
-<nav class="daynav">
+<nav class="daynav" aria-label="日付">
   <div class="daynav-dates">
     {% if day.prev %}<a href="/{{ day.prev }}/">← {{ day.prev }}</a>{% else %}<span></span>{% endif %}
     <strong>{{ day.date }}</strong>
     {% if day.next %}<a href="/{{ day.next }}/">{{ day.next }} →</a>{% else %}<span></span>{% endif %}
   </div>
   <div class="daynav-kinds">
-    <a href="/{{ day.date }}/" {% if current == "daily" %}aria-current="page"{% endif %}>統合</a>
-    {% if day.arxiv %}<a href="/{{ day.date }}/arxiv/" {% if current == "arxiv" %}aria-current="page"{% endif %}>arXiv</a>{% endif %}
-    {% if day.github %}<a href="/{{ day.date }}/github/" {% if current == "github" %}aria-current="page"{% endif %}>GitHub</a>{% endif %}
+    <a href="/{{ day.date }}/"{% if current == "daily" %} aria-current="page"{% endif %}>統合</a>
+    {% if day.arxiv %}<a href="/{{ day.date }}/arxiv/"{% if current == "arxiv" %} aria-current="page"{% endif %}>arXiv</a>{% endif %}
+    {% if day.github %}<a href="/{{ day.date }}/github/"{% if current == "github" %} aria-current="page"{% endif %}>GitHub</a>{% endif %}
   </div>
 </nav>
