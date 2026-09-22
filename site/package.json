@@ -2,6 +2,9 @@
   "name": "briefing-site",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "build": "eleventy",
     "dev": "eleventy --serve",

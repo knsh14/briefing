@@ -18,3 +18,8 @@ Claude Code で `daily-digest` スキルを実行する。
 ```
 cd site && npm ci && npm run build
 ```
+
+## 検証
+
+サイトの変更後は `cd site && npm test` を実行する（ユニットテスト、ビルド、スモークチェックを行う）。
+Markdown コンテンツの文章チェックはリポジトリルートで `npm run lint` を実行する（textlint）。
