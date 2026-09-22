@@ -1,0 +1,23 @@
+---
+permalink: "/feed.xml"
+eleventyExcludeFromCollections: true
+---
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>briefing</title>
+  <subtitle>arXiv 新着論文と GitHub Issue/PR の日次ダイジェスト</subtitle>
+  <id>https://briefing.kamata.page/</id>
+  <link href="https://briefing.kamata.page/"/>
+  <link rel="self" type="application/atom+xml" href="https://briefing.kamata.page/feed.xml"/>
+  <updated>{{ digests.latest }}T00:00:00+09:00</updated>
+  <author><name>kenshi kamata</name></author>
+{% for day in digests.feed %}
+  <entry>
+    <title>デイリーダイジェスト {{ day.date }}</title>
+    <id>https://briefing.kamata.page/{{ day.date }}/</id>
+    <link href="https://briefing.kamata.page/{{ day.date }}/"/>
+    <updated>{{ day.date }}T00:00:00+09:00</updated>
+    <content type="html">{{ day.daily.html }}</content>
+  </entry>
+{% endfor %}
+</feed>

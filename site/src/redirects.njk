@@ -1,0 +1,8 @@
+---
+permalink: "/_redirects"
+eleventyExcludeFromCollections: true
+---
+{% if digests.latest %}
+/latest   /{{ digests.latest }}/  302
+/latest/  /{{ digests.latest }}/  302
+{% endif %}
