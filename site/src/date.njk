@@ -1,0 +1,20 @@
+---
+pagination:
+  data: digests.days
+  size: 1
+  alias: day
+permalink: "/{{ day.date }}/"
+layout: base.njk
+eleventyComputed:
+  title: "{{ day.date }} | briefing"
+---
+{% set current = "daily" %}
+{% include "daynav.njk" %}
+<article class="digest">
+{% if day.daily %}
+  {{ day.daily.html | safe }}
+{% else %}
+  <h1>{{ day.date }}</h1>
+  <p>この日の統合サマリーはありません。</p>
+{% endif %}
+</article>

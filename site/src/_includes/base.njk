@@ -1,0 +1,26 @@
+{# site/src/_includes/base.njk #}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" type="application/atom+xml" title="briefing" href="/feed.xml">
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-name" href="/">briefing</a>
+    <nav>
+      <a href="/latest/">最新</a>
+      <a href="/feed.xml">Feed</a>
+    </nav>
+  </header>
+  <main>
+    {{ content | safe }}
+  </main>
+  <footer class="site-footer">
+    <a href="https://github.com/knsh14/briefing" target="_blank" rel="noopener">knsh14/briefing</a>
+  </footer>
+</body>
+</html>

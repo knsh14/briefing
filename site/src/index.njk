@@ -1,0 +1,19 @@
+---
+permalink: "/"
+layout: base.njk
+title: "briefing"
+---
+<h1>briefing</h1>
+<p>arXiv 新着論文と GitHub Issue/PR の日次ダイジェスト。</p>
+<ul class="daylist">
+{% for day in digests.days %}
+  <li>
+    <a class="daylist-date" href="/{{ day.date }}/">{{ day.date }}</a>
+    <span class="daylist-kinds">
+      {% if day.daily %}<a href="/{{ day.date }}/">統合</a>{% endif %}
+      {% if day.arxiv %}<a href="/{{ day.date }}/arxiv/">arXiv</a>{% endif %}
+      {% if day.github %}<a href="/{{ day.date }}/github/">GitHub</a>{% endif %}
+    </span>
+  </li>
+{% endfor %}
+</ul>
