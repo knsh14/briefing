@@ -7,12 +7,22 @@ const repoRoot = resolve(import.meta.dirname, "../..");
 const failures = [];
 const must = (cond, msg) => { if (!cond) failures.push(msg); };
 
-const latest = readdirSync(resolve(repoRoot, "daily"))
-  .map((n) => DATE_RE.exec(n)?.[1])
+const newestDate = (dir) =>
+  readdirSync(resolve(repoRoot, dir))
+    .map((n) => DATE_RE.exec(n)?.[1])
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+
+const latest = ["daily", "arxiv", "github"]
+  .map((dir) => newestDate(dir))
   .filter(Boolean)
   .sort()
   .at(-1);
-must(latest, "daily/ に日付ファイルがない");
+must(latest, "daily/, arxiv/, github/ に日付ファイルがない");
+
+const latestDaily = newestDate("daily");
+must(latestDaily, "daily/ に日付ファイルがない");
 
 for (const p of ["index.html", "404.html", "feed.xml", "_redirects", "style.css", "icons/git-pull-request.svg", "icons/issue-opened.svg", `${latest}/index.html`]) {
   must(existsSync(resolve(site, p)), `_site/${p} がない`);
@@ -26,7 +36,7 @@ if (existsSync(resolve(site, "_redirects"))) {
 
 if (existsSync(resolve(site, "feed.xml"))) {
   const feed = readFileSync(resolve(site, "feed.xml"), "utf8");
-  must(feed.includes(`<id>https://briefing.kamata.page/${latest}/</id>`), "feed.xml に最新日のエントリがない");
+  must(feed.includes(`<id>https://briefing.kamata.page/${latestDaily}/</id>`), "feed.xml に最新日のエントリがない");
 }
 
 for (const dir of ["arxiv", "github"]) {
@@ -41,4 +51,4 @@ if (failures.length) {
   console.error(failures.map((f) => `✘ ${f}`).join("\n"));
   process.exit(1);
 }
-console.log(`✔ build ok (latest: ${latest})`);
+console.log(`✔ build ok (latest: ${latest}, latest daily: ${latestDaily})`);
