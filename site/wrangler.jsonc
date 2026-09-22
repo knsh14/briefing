@@ -1,0 +1,13 @@
+// site/wrangler.jsonc
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "briefing",
+  "compatibility_date": "2026-09-22",
+  "assets": {
+    "directory": "./_site",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "briefing.kamata.page", "custom_domain": true }
+  ]
+}

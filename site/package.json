@@ -1,0 +1,18 @@
+{
+  "name": "briefing-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "eleventy",
+    "dev": "eleventy --serve",
+    "test": "node --test",
+    "check": "node scripts/check-build.mjs"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.6",
+    "wrangler": "^4.136.1"
+  },
+  "dependencies": {
+    "markdown-it": "^15.0.2"
+  }
+}
