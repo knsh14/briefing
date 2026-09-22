@@ -40,7 +40,7 @@ test("renderMarkdown rewrites links, adds attributes to external links, rewrites
   assert.match(html, /<a href="\/2026-08-11\/github\/">詳細<\/a>/);
   assert.match(html, /<a href="https:\/\/github.com\/neovim\/neovim\/pull\/40924" target="_blank" rel="noopener">GH<\/a>/);
   assert.match(html, /<img src="\/icons\/git-pull-request.svg" alt="PR">/);
-  assert.doesNotMatch(html, /target="_blank"[^>]*href="\/2026/);
+  assert.doesNotMatch(html, /<a href="\/2026-08-11\/github\/"[^>]*target=/);
 });
 
 test("renderMarkdown keeps raw HTML disabled and renders headings", () => {
