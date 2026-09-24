@@ -1,6 +1,7 @@
 import urllib.parse
 
 from fetch_hackernews import (
+    error_text,
     html_to_text,
     merge_keyword_hits,
     parse_comment,
@@ -86,3 +87,7 @@ def test_parse_comment_skips_deleted_dead_and_non_comments():
 def test_parse_comment_truncates():
     comment = parse_comment({"type": "comment", "by": "u", "text": "a" * 600}, max_chars=500)
     assert comment == {"author": "u", "text": "a" * 500}
+
+
+def test_error_text_truncates():
+    assert error_text(Exception("e" * 600), max_chars=500) == "e" * 500

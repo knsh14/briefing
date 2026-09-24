@@ -40,6 +40,7 @@ TOP_N = 30
 MAX_KEYWORD_MATCHES = 20
 MAX_COMMENTS = 3
 MAX_COMMENT_CHARS = 500
+MAX_ERROR_CHARS = 500
 DEFAULT_MIN_POINTS = 10
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # seconds, doubled each retry
@@ -144,6 +145,10 @@ def parse_comment(item: dict | None, max_chars: int = MAX_COMMENT_CHARS) -> dict
     return {"author": item.get("by", ""), "text": text[:max_chars]}
 
 
+def error_text(e: BaseException, max_chars: int = MAX_ERROR_CHARS) -> str:
+    return str(e)[:max_chars]
+
+
 # ---------------------------------------------------------------------------
 # Fetching
 # ---------------------------------------------------------------------------
@@ -168,7 +173,7 @@ def attach_comments(stories: list[dict]) -> None:
             story["comments"] = fetch_comments(story["id"])
         except Exception as e:  # noqa: BLE001 - one story's failure must not stop the rest
             story["comments"] = []
-            story["error"] = str(e)
+            story["error"] = error_text(e)
 
     with ThreadPoolExecutor(WORKERS) as pool:
         list(pool.map(work, stories))
@@ -218,7 +223,7 @@ def main(argv: list[str] | None = None) -> None:
         try:
             keyword_hits[keyword] = http_get_json(search_url(since_ts, keyword, min_points))["hits"]
         except Exception as e:  # noqa: BLE001
-            errors.append({"keyword": keyword, "error": str(e)})
+            errors.append({"keyword": keyword, "error": error_text(e)})
     matches = merge_keyword_hits(keyword_hits, {s["id"] for s in top})
 
     print(f"Fetching comments for {len(top) + len(matches)} stories...", file=sys.stderr)
