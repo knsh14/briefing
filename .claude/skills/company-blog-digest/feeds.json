@@ -1,0 +1,29 @@
+{
+  "max_items_per_feed": 5,
+  "feeds": [
+    {"name": "OpenAI", "url": "https://openai.com/news/rss.xml"},
+    {"name": "Google DeepMind", "url": "https://deepmind.google/blog/feed/basic/"},
+    {"name": "Hugging Face", "url": "https://huggingface.co/blog/feed.xml"},
+    {"name": "comma.ai", "url": "https://blog.comma.ai/feed.xml"},
+    {"name": "GitHub", "url": "https://github.blog/feed/"},
+    {"name": "Cloudflare", "url": "https://blog.cloudflare.com/rss/"},
+    {"name": "Astral", "url": "https://astral.sh/blog/rss.xml"},
+    {"name": "Netflix TechBlog", "url": "https://netflixtechblog.com/feed"},
+    {"name": "NVIDIA Technical Blog", "url": "https://developer.nvidia.com/blog/feed/"},
+    {"name": "Waymo", "url": "https://waymo.com/blog/rss.xml"},
+    {"name": "Wayve", "url": "https://wayve.ai/wp-content/themes/wayve/rss-feed.php"},
+    {"name": "Meta Engineering", "url": "https://engineering.fb.com/feed/"},
+    {"name": "Microsoft Research", "url": "https://www.microsoft.com/en-us/research/feed/"},
+    {"name": "Stripe", "url": "https://stripe.com/blog/feed.rss"},
+    {"name": "Airbnb", "url": "https://medium.com/feed/airbnb-engineering"},
+    {"name": "Spotify", "url": "https://engineering.atspotify.com/feed/"},
+    {"name": "Shopify", "url": "https://shopify.engineering/blog.atom"},
+    {"name": "Dropbox", "url": "https://dropbox.tech/feed"},
+    {"name": "Discord", "url": "https://discord.com/blog/rss.xml"},
+    {"name": "Slack", "url": "https://slack.engineering/feed/"},
+    {"name": "Pinterest", "url": "https://medium.com/feed/pinterest-engineering"},
+    {"name": "Figma", "url": "https://www.figma.com/blog/feed/atom.xml"},
+    {"name": "Vercel", "url": "https://vercel.com/atom"},
+    {"name": "Datadog", "url": "https://www.datadoghq.com/blog/index.xml"}
+  ]
+}

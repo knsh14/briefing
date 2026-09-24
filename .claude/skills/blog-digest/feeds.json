@@ -1,0 +1,24 @@
+{
+  "max_items_per_feed": 5,
+  "feeds": [
+    {"name": "Simon Willison", "url": "https://simonwillison.net/atom/everything/"},
+    {"name": "The Pragmatic Engineer", "url": "https://newsletter.pragmaticengineer.com/feed"},
+    {"name": "Import AI", "url": "https://importai.substack.com/feed"},
+    {"name": "Latent Space", "url": "https://www.latent.space/feed"},
+    {"name": "Ahead of AI", "url": "https://magazine.sebastianraschka.com/feed"},
+    {"name": "Lilian Weng", "url": "https://lilianweng.github.io/index.xml"},
+    {"name": "Mitchell Hashimoto", "url": "https://mitchellh.com/feed.xml"},
+    {"name": "Julia Evans", "url": "https://jvns.ca/atom.xml"},
+    {"name": "Will Larson", "url": "https://lethain.com/feeds/"},
+    {"name": "Cal Newport", "url": "https://calnewport.com/feed/"},
+    {"name": "Kent Beck (Tidy First?)", "url": "https://tidyfirst.substack.com/feed"},
+    {"name": "Martin Fowler", "url": "https://martinfowler.com/feed.atom"},
+    {"name": "Charity Majors", "url": "https://charity.wtf/feed/"},
+    {"name": "Camille Fournier (Elided Branches)", "url": "https://www.elidedbranches.com/feeds/posts/default"},
+    {"name": "Paul Graham", "url": "http://www.aaronsw.com/2002/feeds/pgessays.rss"},
+    {"name": "Dan Luu", "url": "https://danluu.com/atom.xml"},
+    {"name": "Addy Osmani", "url": "https://addyo.substack.com/feed"},
+    {"name": "Eugene Yan", "url": "https://eugeneyan.com/rss/"},
+    {"name": "Hamel Husain", "url": "https://hamel.dev/index.xml"}
+  ]
+}
