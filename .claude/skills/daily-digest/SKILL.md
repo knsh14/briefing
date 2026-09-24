@@ -1,10 +1,14 @@
 ---
 name: daily-digest
-description: "arxiv 新着論文と GitHub リポジトリアクティビティを同時に取得し、個別ダイジェストに加えて横断的な統合サマリーを生成するスキル。「daily-digest」「今日のダイジェスト」「毎日のまとめ」「デイリーダイジェスト」などで発動する。"
+description: "arxiv 新着論文、HF Daily Papers、Hacker News、GitHub リポジトリアクティビティ、GitHub Trending、個人ブログ、企業ブログを同時に取得し、個別ダイジェストに加えて横断的な統合サマリーを生成するスキル。「daily-digest」「今日のダイジェスト」「毎日のまとめ」「デイリーダイジェスト」などで発動する。"
 allowed-tools:
   - "Bash(uv run python */arxiv-digest/scripts/fetch_arxiv.py*)"
   - "Bash(uv run python */github-digest/scripts/fetch_github.py*)"
-  - "Bash(git add arxiv/* github/* daily/*)"
+  - "Bash(uv run */hackernews-digest/scripts/fetch_hackernews.py*)"
+  - "Bash(uv run */hf-papers-digest/scripts/fetch_hf_papers.py*)"
+  - "Bash(uv run */blog-digest/scripts/fetch_feeds.py*)"
+  - "Bash(uv run */trending-digest/scripts/fetch_trending.py*)"
+  - "Bash(git add *)"
   - "Bash(git commit -m *)"
   - "Bash(git push)"
   - "Bash(git status:*)"
@@ -17,35 +21,41 @@ allowed-tools:
 
 # デイリーダイジェスト
 
-arxiv 新着論文ダイジェストと GitHub リポジトリダイジェストを **並列** で同時実行し、それぞれの個別出力に加えて、両ソースを横断する統合サマリーを生成・保存する。
+7つの情報源のダイジェストを **並列** で生成し、それぞれの個別出力に加えて、全情報源を横断する統合サマリーを生成・保存する。
+
+| 情報源 | スキル | 個別出力 |
+|---|---|---|
+| arxiv | `arxiv-digest` | `arxiv/YYYY-MM-DD.md` |
+| HF Daily Papers | `hf-papers-digest` | `hf-papers/YYYY-MM-DD.md` |
+| Hacker News | `hackernews-digest` | `hackernews/YYYY-MM-DD.md` |
+| GitHub | `github-digest` | `github/YYYY-MM-DD.md` |
+| GitHub Trending | `trending-digest` | `trending/YYYY-MM-DD.md` |
+| 個人ブログ | `blog-digest` | `blogs/YYYY-MM-DD.md` |
+| 企業ブログ | `company-blog-digest` | `company-blogs/YYYY-MM-DD.md` |
 
 ## ワークフロー
 
-### Step 1: 既存スキルの並列実行
+### Step 1: 各スキルの並列実行
 
-2つの subagent を **並列に** 起動し、既存スキルをそれぞれ実行させる。
-
-```
-Agent(model=opus, name="arxiv-agent")  ──→ Skill("arxiv-digest")  ──→ arxiv/YYYY-MM-DD.md
-Agent(model=opus, name="github-agent") ──→ Skill("github-digest") ──→ github/YYYY-MM-DD.md
-```
+7つの subagent を **並列に** 起動し、上の表のスキルをそれぞれ実行させる。
 
 > **全ての subagent は `model: "opus"` を指定すること。**
 
-各 subagent へのプロンプト:
+各 subagent へのプロンプトは「{スキル名} スキルを実行してください。完了したら、保存したファイルパスと件数（{件数の内訳}）を報告してください。」とする。件数の内訳は次のとおり。
 
-- **arxiv-agent**: 「arxiv-digest スキルを実行してください。完了したら、保存したファイルパスとカテゴリごとの論文数を報告してください。」
-- **github-agent**: 「github-digest スキルを実行してください。完了したら、保存したファイルパスとリポジトリごとの Issue/PR 数を報告してください。」
+- `arxiv-digest`: カテゴリごとの論文数
+- `hf-papers-digest`: 対象日と論文数
+- `hackernews-digest`: 上位記事数とキーワード一致数
+- `github-digest`: リポジトリごとの Issue/PR 数
+- `trending-digest`: リポジトリ数
+- `blog-digest`: 対象期間とフィードごとの記事数、失敗したフィード
+- `company-blog-digest`: 対象期間とフィードごとの記事数、失敗したフィード
 
-両エージェントの完了を待つ。片方が失敗しても、もう片方の結果で続行する。
+全エージェントの完了を待つ。失敗したものがあっても、残りの結果で続行する。
 
 ### Step 2: 統合サマリー生成
 
-両方の個別ダイジェストファイルを読み込み、横断的な統合サマリーを生成する。
-
-1. `arxiv/YYYY-MM-DD.md` を読み込む
-2. `github/YYYY-MM-DD.md` を読み込む
-3. 以下のフォーマットで統合サマリーを生成する
+成功した情報源の個別ファイルを読み込み、横断的な統合サマリーを生成する。
 
 #### 統合サマリーのフォーマット
 
@@ -54,14 +64,14 @@ Agent(model=opus, name="github-agent") ──→ Skill("github-digest") ──�
 
 ## 本日のハイライト
 
-arxiv 論文と GitHub アクティビティから横断的に注目トピックを5〜8件選定する。
+全情報源から横断的に注目トピックを5〜8件選定する。
 
 選定基準:
-- arxiv 論文と GitHub の動向に関連性がある（例: 論文の手法が OSS で実装されている）
-- 大きなインパクトが見込まれる（画期的な手法、大規模な機能追加）
+- 複数の情報源に同じ話題が現れている（例: HF Papers の論文が HN でも話題、企業ブログの発表したリポジトリが Trending に載っている、arxiv の手法が OSS で実装された）
+- 大きなインパクトが見込まれる（画期的な手法、大規模な機能追加、重要なリリース）
 - 複数の領域にまたがる影響がある
 
-1. **[{タイトル}]({link})** ({arxiv/GitHub リポジトリ名}) — {選定理由(日本語)}
+1. **[{タイトル}]({link})** ({情報源名。複数に出ていれば「HN / HF Papers」のように併記}) — {選定理由(日本語)}
 2. ...
 
 ---
@@ -70,12 +80,25 @@ arxiv 論文と GitHub アクティビティから横断的に注目トピック
 
 > 詳細: [arxiv/YYYY-MM-DD.md](../arxiv/YYYY-MM-DD.md)
 
-カテゴリごとに注目論文を1〜2件ピックアップし、簡潔に紹介する。
-個別ファイルの要約をさらに圧縮し、各論文1〜2文で記載する。
+カテゴリを問わず注目論文を2〜3件。各1〜2文。
 
-### {カテゴリ名}
-- **[{日本語タイトル}]({link})** — {1〜2文の要約}
-- ...
+- **[{日本語タイトル}]({link})** ({カテゴリ}) — {1〜2文の要約}
+
+---
+
+## HF Daily Papers
+
+> 詳細: [hf-papers/YYYY-MM-DD.md](../hf-papers/YYYY-MM-DD.md)
+
+- **[{日本語タイトル}]({hf_url})** ({upvotes} upvotes) — {1〜2文の要約}
+
+---
+
+## Hacker News
+
+> 詳細: [hackernews/YYYY-MM-DD.md](../hackernews/YYYY-MM-DD.md)
+
+- **[{title}]({url})** ({points} points) — {話題と反応を1〜2文}
 
 ---
 
@@ -83,23 +106,44 @@ arxiv 論文と GitHub アクティビティから横断的に注目トピック
 
 > 詳細: [github/YYYY-MM-DD.md](../github/YYYY-MM-DD.md)
 
-リポジトリごとに主要な動きを簡潔に紹介する。
-個別ファイルの要約をさらに圧縮し、各項目1〜2文で記載する。
+- **[{タイトル}]({link})** ({owner/repo} `#{number}`) — {1〜2文の要約}
 
-### {owner/repo}
-- **[{タイトル}]({link})** (`#{number}`) — {1〜2文の要約}
-- ...
+---
+
+## GitHub Trending
+
+> 詳細: [trending/YYYY-MM-DD.md](../trending/YYYY-MM-DD.md)
+
+- **[{repo}]({url})** (+{stars_today} stars) — {1〜2文}
+
+---
+
+## 個人ブログ
+
+> 詳細: [blogs/YYYY-MM-DD.md](../blogs/YYYY-MM-DD.md)
+
+- **[{title}]({link})** ({フィード名}) — {1〜2文の要約}
+
+---
+
+## 企業ブログ
+
+> 詳細: [company-blogs/YYYY-MM-DD.md](../company-blogs/YYYY-MM-DD.md)
+
+- **[{title}]({link})** ({フィード名}) — {1〜2文の要約}
 ```
+
+各情報源の節は2〜3件に絞る。
 
 要約の注意点:
 - 個別ファイルの内容に忠実に書く。新たな推測や外部知識で補わない
-- ハイライトセクションでは arxiv と GitHub の関連性を積極的に見つける
+- ハイライトでは情報源どうしの関連を積極的に見つける
 - 圧縮しても情報の正確さは維持する
 
-#### 片方のみ成功した場合
+#### 一部の情報源が失敗した場合
 
-- arxiv のみ成功: GitHub セクションを「取得に失敗しました」と記載し、arxiv の内容で統合サマリーを生成する
-- GitHub のみ成功: arxiv セクションを「取得に失敗しました」と記載し、GitHub の内容で統合サマリーを生成する
+- 失敗した情報源の節には、詳細リンクを置かずに「取得に失敗しました」とだけ書く。
+- ブログで新着記事がなかった場合は「対象期間に新着記事はありません」と書く（失敗ではない）。
 
 ### Step 3: 文章校正
 
@@ -121,10 +165,10 @@ arxiv 論文と GitHub アクティビティから横断的に注目トピック
 
 ### Step 4: git コミットとプッシュ
 
-生成した3つのファイルを git にコミットし、リモートへプッシュする。コミットメッセージは生成対象日（YYYY-MM-DD）。
+生成できたファイルを git にコミットし、リモートへプッシュする。コミットメッセージは生成対象日（YYYY-MM-DD）。
 
 ```bash
-git add arxiv/YYYY-MM-DD.md github/YYYY-MM-DD.md daily/YYYY-MM-DD.md
+git add arxiv/YYYY-MM-DD.md hf-papers/YYYY-MM-DD.md hackernews/YYYY-MM-DD.md github/YYYY-MM-DD.md trending/YYYY-MM-DD.md blogs/YYYY-MM-DD.md company-blogs/YYYY-MM-DD.md daily/YYYY-MM-DD.md
 git commit -m "YYYY-MM-DD"
 git push
 ```
@@ -132,7 +176,8 @@ git push
 注意点:
 
 - `YYYY-MM-DD` はダイジェスト対象日（ファイル名と一致する日付）。当日生成なら今日の日付。
-- Step 1 で片方が失敗していた場合、存在するファイルのみを `git add` する。
+- Step 1 で失敗した情報源のファイルは `git add` に含めない（存在するファイルのみを指定する）。
+- `.cache/` はコミットしない（`.gitignore` 済み）。
 - コミット成功後に `git status` で結果を確認する。
 - pre-commit フックなどで失敗した場合は、原因を報告して停止する（`--no-verify` は使わない）。
 - コミット成功後に `git push` でリモートへ反映する。
@@ -142,18 +187,14 @@ git push
 
 生成が完了したら、以下を報告する:
 
-- 保存した3つのファイルパス:
-  - `arxiv/YYYY-MM-DD.md`
-  - `github/YYYY-MM-DD.md`
-  - `daily/YYYY-MM-DD.md`
-- カテゴリごとの論文数
-- リポジトリごとの Issue/PR 数
-- 取得できなかったソースがあればその旨
+- 保存したファイルパス（統合サマリーと、成功した個別ダイジェスト）
+- 情報源ごとの件数（Step 1 で各 subagent が報告したもの）
+- 取得できなかった情報源があればその旨
 - コミットハッシュ
 - プッシュの結果（成功／失敗、失敗時はその原因）
 
 ## エラーハンドリング
 
-- 片方のスキルが失敗しても、もう片方の結果で統合サマリーを生成する
-- 両方失敗した場合は、エラー内容をユーザーに報告する
+- 一部の情報源が失敗しても、残りの結果で統合サマリーを生成する
+- 全情報源が失敗した場合は、エラー内容をユーザーに報告する
 - `daily/` ディレクトリが存在しない場合は作成する

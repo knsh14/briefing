@@ -2,10 +2,10 @@
   "name": "briefing",
   "private": true,
   "version": "1.0.0",
-  "description": "arXiv と GitHub の日次ダイジェスト",
+  "description": "arXiv、HF Daily Papers、Hacker News、GitHub、GitHub Trending、技術ブログの日次ダイジェスト",
   "type": "commonjs",
   "scripts": {
-    "lint": "textlint daily arxiv github"
+    "lint": "textlint daily arxiv github hf-papers hackernews trending blogs company-blogs"
   },
   "repository": {
     "type": "git",
