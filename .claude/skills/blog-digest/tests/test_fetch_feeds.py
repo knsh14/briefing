@@ -242,13 +242,11 @@ def test_main_clears_previous_output_dir_with_manifest(tmp_path, monkeypatch):
     assert (out / "manifest.json").exists()
 
 
-def test_main_clears_leftovers_of_an_interrupted_run(tmp_path, monkeypatch):
+def test_main_uses_an_empty_existing_out_dir(tmp_path, monkeypatch):
     import fetch_feeds
 
     _stub_process_feed(monkeypatch)
     out = tmp_path / "out"
     out.mkdir()
-    (out / "03-some-blog.txt").write_text("written before the run was killed")
     fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
-    assert not (out / "03-some-blog.txt").exists()
     assert (out / "manifest.json").exists()

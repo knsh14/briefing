@@ -16,9 +16,8 @@ matching how state files are named), capped at 7 days before today.
 Output (in --out-dir, cleared first):
     manifest.json   {since, feeds: [{name, url, file, count}], errors: [{name, url, error}]}
     NN-<slug>.txt   Posts of one feed, wrapped to short lines for the Read tool.
-A non-empty --out-dir that has no manifest.json and holds anything besides
-NN-<slug>.txt files is refused (exit 1), so a mistyped path cannot delete
-unrelated files.
+A non-empty --out-dir without manifest.json is refused (exit 1), so a mistyped
+path cannot delete unrelated files.
 Progress and errors go to stderr.
 """
 
@@ -46,7 +45,6 @@ import trafilatura
 
 USER_AGENT = "Mozilla/5.0 (compatible; briefing-digest/1.0; +https://briefing.kamata.page/)"
 DATE_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
-FEED_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9-]+\.txt$")  # NN-<slug>.txt written by process_feed
 MAX_LOOKBACK_DAYS = 7
 DEFAULT_MAX_ITEMS = 5
 MIN_FEED_BODY_CHARS = 1500
@@ -228,14 +226,9 @@ def process_feed(index: int, feed: dict, since: date, max_items: int, out_dir: s
 
 
 def reset_out_dir(path: str) -> None:
-    """Clear a previous run's output. Refuse a non-empty directory this script did not write.
-
-    A directory counts as ours if it has manifest.json, or holds only NN-<slug>.txt
-    files (a run interrupted before writing the manifest).
-    """
+    """Clear a previous run's output. Refuse a non-empty directory without manifest.json."""
     names = os.listdir(path) if os.path.isdir(path) else []
-    ours = "manifest.json" in names or all(FEED_FILE_RE.match(n) for n in names)
-    if not ours:
+    if names and "manifest.json" not in names:
         print(f"Refusing to clear --out-dir {path}: it is not empty and has no manifest.json", file=sys.stderr)
         sys.exit(1)
     shutil.rmtree(path, ignore_errors=True)
