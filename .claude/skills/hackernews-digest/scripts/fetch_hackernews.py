@@ -82,6 +82,7 @@ def search_url(since_ts: int, query: str = "", min_points: int = 0) -> str:
         params["query"] = query
         params["restrictSearchableAttributes"] = "title"
         params["typoTolerance"] = "false"
+        params["queryType"] = "prefixNone"  # the default prefixLast lets "uv" match "Uvloop"
     return f"{SEARCH_URL}?{urllib.parse.urlencode(params)}"
 
 

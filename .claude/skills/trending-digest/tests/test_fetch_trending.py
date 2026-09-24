@@ -68,3 +68,39 @@ def test_parse_trending_minimal_row_and_order():
 
 def test_parse_trending_empty_page():
     assert parse_trending("<html><body>nothing</body></html>") == []
+
+
+def _fake_gh(monkeypatch, stdout):
+    import subprocess
+
+    import fetch_trending
+
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(fetch_trending.subprocess, "run", fake_run)
+
+
+def _json_value_len(text):
+    import json
+
+    return len(json.dumps(text, ensure_ascii=False))
+
+
+def test_fetch_readme_keeps_plain_text_up_to_max_chars(monkeypatch):
+    from fetch_trending import MAX_README_CHARS, fetch_readme
+
+    _fake_gh(monkeypatch, "a" * 5000)
+    assert fetch_readme("o/r") == "a" * MAX_README_CHARS
+
+
+def test_fetch_readme_excerpt_stays_short_after_json_escaping(monkeypatch):
+    from fetch_trending import fetch_readme
+
+    # Quotes, backslashes, newlines and control characters grow when JSON-escaped.
+    readme = ('"\\\n\x01' * 1000)
+    _fake_gh(monkeypatch, readme)
+    excerpt = fetch_readme("o/r")
+    assert readme.startswith(excerpt)
+    assert len(excerpt) > 0
+    assert _json_value_len(excerpt) < 1900

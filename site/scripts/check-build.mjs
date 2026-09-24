@@ -41,6 +41,16 @@ for (const { key } of KINDS) {
   }
 }
 
+// Markdown の相対リンク（../<kind>/YYYY-MM-DD.md など）が書き換えられずに残るとサイト上で 404 になる。
+// feed.xml の本文は HTML エスケープされているので、両方の表記を探す。
+const LEAKED_HREF_RE = /href=(?:"|&quot;)\.\.\//;
+const builtFiles = existsSync(site)
+  ? readdirSync(site, { recursive: true }).filter((p) => p.endsWith(".html") || p === "feed.xml")
+  : [];
+for (const p of builtFiles) {
+  must(!LEAKED_HREF_RE.test(readFileSync(resolve(site, p), "utf8")), `_site/${p} に書き換えられていない href="../ が残っている`);
+}
+
 if (failures.length) {
   console.error(failures.map((f) => `✘ ${f}`).join("\n"));
   process.exit(1);

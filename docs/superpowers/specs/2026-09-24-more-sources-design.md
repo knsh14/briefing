@@ -54,11 +54,12 @@ arxiv は量が多いわりに注目度の情報がなく、GitHub は監視対�
 | Hacker News | 実行時点から直近24時間 |
 | GitHub Trending | GitHub の `since=daily` に従う |
 | HF Daily Papers | 実行日の Daily Papers。空なら前日分にフォールバックし、その旨を JSON に記録する |
-| 個人ブログ・企業ブログ | 出力ディレクトリ内の、今日より前の最新ファイルの日付 0:00 UTC 以降。ファイルがなければ直近7日。遡る上限は7日 |
+| 個人ブログ・企業ブログ | 出力ディレクトリ内の、今日より前の最新ファイルの日付のローカル時刻 0:00 以降。ファイルがなければ直近7日。遡る上限は7日 |
 
 ブログの期間を前回出力基準にするのは、実行しなかった日の記事を取りこぼさないためである。
 スクリプトは `--state-dir <出力ディレクトリ>` を受け取り、そこにある今日より前の最新ファイルの日付 D を探す。
-期間の開始は D の 0:00 UTC とし、7日前より古ければ7日前に切り上げる。
+期間の開始は D のローカル時刻 0:00 とし、7日前より古ければ7日前に切り上げる。
+ファイル名の日付と今日の日付はどちらもローカル時刻の日付なので、期間の開始もローカル時刻にそろえる。
 D 当日の記事は前回と重複しうるが、取りこぼしよりましとする。
 `--since YYYY-MM-DD` を渡したときはそれを優先する。
 
@@ -114,7 +115,7 @@ D 当日の記事は前回と重複しうるが、取りこぼしよりましと
 - 出力は `--out-dir` に書く。
   - 記事が1件以上あるフィードごとに `NN-<slug>.txt`（`NN` は feeds.json での順番）。中身はフィード名、URL、記事ごとのタイトル・リンク・公開日時・著者・`body_source`・本文。
   - `manifest.json` に `{since, feeds: [{name, url, file, count}], errors: [{name, url, error}]}`。
-- 既存の `--out-dir` の中身は実行開始時に消す。
+- 既存の `--out-dir` の中身は実行開始時に消す。ただし `manifest.json` がなく、`NN-<slug>.txt` 以外のファイルを含む空でないディレクトリは消さず、標準エラーに理由を出して終了コード 1 で止まる。パスの指定を誤って無関係なファイルを消さないためである。
 
 `feeds.json` の形:
 
@@ -131,7 +132,7 @@ D 当日の記事は前回と重複しうるが、取りこぼしよりましと
 
 - `https://github.com/trending?since=daily` の HTML を `beautifulsoup4` で解析し、最大25件を取る（実際の掲載数は日によって十数件）。
 - 各リポジトリのフィールドは `repo`、`url`、`description`、`language`、`stars`、`forks`、`stars_today`、`readme_excerpt`。
-- `readme_excerpt` は `gh api repos/{repo}/readme` の先頭1,200字。取れなければ空文字。
+- `readme_excerpt` は `gh api repos/{repo}/readme` の先頭1,200字。JSON エスケープ後の長さが1,900字に達する場合は、その手前で切る。取れなければ空文字。
 - HTML 構造が変わって0件になったら、`error` を立てて終了コード 1 を返す。
 
 ### フィード初期リスト
@@ -221,11 +222,9 @@ Step 3（校正）は変更しない。
 Step 4 の `git add` は生成できたファイルだけを対象にする。
 Step 5 の完了報告に新しい情報源の件数を加える。
 
-`allowed-tools` と `.claude/settings.json` の `permissions.allow` に次を足す。
-
-- `Bash(uv run */hackernews-digest/scripts/fetch_hackernews.py*)` ほか新スクリプト4本分
-- `Bash(mkdir -p */hackernews)` ほか新出力ディレクトリ5つ分
-- `Bash(git add ...)` のパターンに新ディレクトリを加える
+`allowed-tools` と `.claude/settings.json` の `permissions.allow` に `Bash(uv run */hackernews-digest/scripts/fetch_hackernews.py*)` ほか新スクリプト4本分を足す。
+新出力ディレクトリ用の `mkdir -p` の許可は足さない。出力ディレクトリは Write ツールがファイルを書くときに作るためである。
+`allowed-tools` の `git add` は `Bash(git add *)` に広げる。生成できたファイルだけを指定するので、対象の組み合わせが実行ごとに変わるためである。
 
 ### サイトの変更
 

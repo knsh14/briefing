@@ -32,6 +32,7 @@ def test_search_url_for_top_stories():
     assert q["tags"] == ["story"]
     assert q["numericFilters"] == ["created_at_i>100"]
     assert "query" not in q
+    assert "queryType" not in q
 
 
 def test_search_url_for_keyword_is_title_only_and_exact():
@@ -40,6 +41,7 @@ def test_search_url_for_keyword_is_title_only_and_exact():
     assert q["query"] == ["uv"]
     assert q["restrictSearchableAttributes"] == ["title"]
     assert q["typoTolerance"] == ["false"]
+    assert q["queryType"] == ["prefixNone"]  # "uv" must not match "Uvloop"
 
 
 def test_parse_hit_uses_hn_url_for_text_posts_and_zero_points():

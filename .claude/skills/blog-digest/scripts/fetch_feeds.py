@@ -9,13 +9,16 @@ Usage:
     uv run fetch_feeds.py --config feeds.json --out-dir .cache/blogs-2026-09-24 --state-dir blogs
     uv run fetch_feeds.py --config feeds.json --out-dir DIR --since 2026-09-20
 
-The period starts at 00:00 UTC of a start date: --since if given, otherwise the
-newest YYYY-MM-DD.md in --state-dir dated before today (the local date, matching
-how state files are named), capped at 7 days before today.
+The period starts at local midnight of a start date: --since if given, otherwise
+the newest YYYY-MM-DD.md in --state-dir dated before today (the local date,
+matching how state files are named), capped at 7 days before today.
 
 Output (in --out-dir, cleared first):
     manifest.json   {since, feeds: [{name, url, file, count}], errors: [{name, url, error}]}
     NN-<slug>.txt   Posts of one feed, wrapped to short lines for the Read tool.
+A non-empty --out-dir that has no manifest.json and holds anything besides
+NN-<slug>.txt files is refused (exit 1), so a mistyped path cannot delete
+unrelated files.
 Progress and errors go to stderr.
 """
 
@@ -43,6 +46,7 @@ import trafilatura
 
 USER_AGENT = "Mozilla/5.0 (compatible; briefing-digest/1.0; +https://briefing.kamata.page/)"
 DATE_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
+FEED_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9-]+\.txt$")  # NN-<slug>.txt written by process_feed
 MAX_LOOKBACK_DAYS = 7
 DEFAULT_MAX_ITEMS = 5
 MIN_FEED_BODY_CHARS = 1500
@@ -128,7 +132,8 @@ def entry_datetime(entry) -> datetime | None:
 
 
 def select_entries(entries, since: date, max_items: int) -> list[dict]:
-    since_dt = datetime.combine(since, dtime.min, tzinfo=timezone.utc)
+    # State files are named by local date, so the period starts at local midnight.
+    since_dt = datetime.combine(since, dtime.min).astimezone()
     picked = []
     for entry in entries:
         published = entry_datetime(entry)
@@ -222,6 +227,21 @@ def process_feed(index: int, feed: dict, since: date, max_items: int, out_dir: s
 # ---------------------------------------------------------------------------
 
 
+def reset_out_dir(path: str) -> None:
+    """Clear a previous run's output. Refuse a non-empty directory this script did not write.
+
+    A directory counts as ours if it has manifest.json, or holds only NN-<slug>.txt
+    files (a run interrupted before writing the manifest).
+    """
+    names = os.listdir(path) if os.path.isdir(path) else []
+    ours = "manifest.json" in names or all(FEED_FILE_RE.match(n) for n in names)
+    if not ours:
+        print(f"Refusing to clear --out-dir {path}: it is not empty and has no manifest.json", file=sys.stderr)
+        sys.exit(1)
+    shutil.rmtree(path, ignore_errors=True)
+    os.makedirs(path)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", required=True)
@@ -237,8 +257,7 @@ def main(argv: list[str] | None = None) -> None:
     today = date.today()  # local date: state files are named by local date
     since = date.fromisoformat(args.since) if args.since else compute_since(dates_in_dir(args.state_dir), today)
 
-    shutil.rmtree(args.out_dir, ignore_errors=True)
-    os.makedirs(args.out_dir)
+    reset_out_dir(args.out_dir)
 
     def work(pair):
         index, feed = pair

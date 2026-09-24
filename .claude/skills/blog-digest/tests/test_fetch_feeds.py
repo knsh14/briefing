@@ -1,6 +1,9 @@
+import os
+import time
 from datetime import date
 
 import feedparser
+import pytest
 
 from fetch_feeds import (
     MAX_ERROR_CHARS,
@@ -70,6 +73,32 @@ def test_select_entries_filters_by_since_sorts_newest_first_and_limits():
     assert items[0]["summary"] == "Only summary"
     assert items[0]["published"] == "2026-09-23T10:00:00+00:00"
     assert len(select_entries(feedparser.parse(RSS).entries, date(2026, 9, 17), max_items=1)) == 1
+
+
+@pytest.fixture
+def tokyo_tz():
+    """Run the test with the local time zone set to Asia/Tokyo (UTC+9), whatever the machine's is."""
+    old = os.environ.get("TZ")
+    os.environ["TZ"] = "Asia/Tokyo"
+    time.tzset()
+    yield
+    if old is None:
+        del os.environ["TZ"]
+    else:
+        os.environ["TZ"] = old
+    time.tzset()
+
+
+def test_select_entries_period_starts_at_local_midnight(tokyo_tz):
+    rss = """<?xml version="1.0"?><rss version="2.0"><channel><title>B</title>
+<item><title>After local midnight</title><link>https://b.example/a</link>
+<pubDate>Wed, 23 Sep 2026 15:30:00 +0000</pubDate></item>
+<item><title>Before local midnight</title><link>https://b.example/b</link>
+<pubDate>Wed, 23 Sep 2026 14:30:00 +0000</pubDate></item>
+</channel></rss>"""
+    # 2026-09-24 00:30 JST is included; 2026-09-23 23:30 JST is not.
+    items = select_entries(feedparser.parse(rss).entries, date(2026, 9, 24), max_items=5)
+    assert [i["title"] for i in items] == ["After local midnight"]
 
 
 def test_select_entries_reads_atom_updated_and_author():
@@ -166,3 +195,60 @@ def test_main_uses_local_date_for_period(tmp_path, monkeypatch):
     fetch_feeds.main(["--config", str(config), "--out-dir", str(out), "--state-dir", str(state)])
     assert seen["since"] == date(2030, 1, 8)
     assert json.loads((out / "manifest.json").read_text())["since"] == "2030-01-08"
+
+
+def _write_config(tmp_path):
+    import json
+
+    config = tmp_path / "feeds.json"
+    config.write_text(json.dumps({"feeds": [{"name": "A", "url": "https://a.example/feed"}]}))
+    return config
+
+
+def _stub_process_feed(monkeypatch):
+    import fetch_feeds
+
+    def fake_process_feed(index, feed, since, max_items, out_dir):
+        return {"name": feed["name"], "url": feed["url"], "file": "01-a.txt", "count": 0}
+
+    monkeypatch.setattr(fetch_feeds, "process_feed", fake_process_feed)
+
+
+def test_main_refuses_to_clear_non_empty_out_dir_without_manifest(tmp_path, monkeypatch, capsys):
+    import fetch_feeds
+
+    _stub_process_feed(monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "keep.txt").write_text("not ours")
+    with pytest.raises(SystemExit) as exc:
+        fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
+    assert exc.value.code not in (0, None)
+    assert "manifest.json" in capsys.readouterr().err
+    assert (out / "keep.txt").read_text() == "not ours"
+    assert not (out / "manifest.json").exists()
+
+
+def test_main_clears_previous_output_dir_with_manifest(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    _stub_process_feed(monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "manifest.json").write_text("{}")
+    (out / "01-old.txt").write_text("stale")
+    fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
+    assert not (out / "01-old.txt").exists()
+    assert (out / "manifest.json").exists()
+
+
+def test_main_clears_leftovers_of_an_interrupted_run(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    _stub_process_feed(monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "03-some-blog.txt").write_text("written before the run was killed")
+    fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
+    assert not (out / "03-some-blog.txt").exists()
+    assert (out / "manifest.json").exists()

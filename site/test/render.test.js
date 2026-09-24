@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rewriteHref, rewriteSrc, isExternal, renderMarkdown } from "../lib/render.js";
+import { KINDS } from "../lib/load.js";
 
 test("rewriteHref maps sibling digest links to site URLs", () => {
   assert.equal(rewriteHref("../arxiv/2026-08-11.md"), "/2026-08-11/arxiv/");
@@ -8,11 +9,24 @@ test("rewriteHref maps sibling digest links to site URLs", () => {
   assert.equal(rewriteHref("../github-digest/2026-08-11.md"), "/2026-08-11/github/");
 });
 
+test("rewriteHref maps a sibling link for every kind", () => {
+  for (const { key } of KINDS) {
+    assert.equal(rewriteHref(`../${key}/2026-09-24.md`), `/2026-09-24/${key}/`, key);
+  }
+  assert.equal(rewriteHref("../hf-papers/2026-09-24.md"), "/2026-09-24/hf-papers/");
+  assert.equal(rewriteHref("../hackernews/2026-09-24.md"), "/2026-09-24/hackernews/");
+  assert.equal(rewriteHref("../trending/2026-09-24.md"), "/2026-09-24/trending/");
+  assert.equal(rewriteHref("../blogs/2026-09-24.md"), "/2026-09-24/blogs/");
+  assert.equal(rewriteHref("../company-blogs/2026-09-24.md#x"), "/2026-09-24/company-blogs/#x");
+});
+
 test("rewriteHref leaves other links alone", () => {
   assert.equal(rewriteHref("https://arxiv.org/abs/2608.07776"), "https://arxiv.org/abs/2608.07776");
   assert.equal(rewriteHref("#section"), "#section");
   assert.equal(rewriteHref("../doc/foo.md"), "../doc/foo.md");
   assert.equal(rewriteHref("../arxiv/notes.md"), "../arxiv/notes.md");
+  assert.equal(rewriteHref("../daily/2026-09-24.md"), "../daily/2026-09-24.md");
+  assert.equal(rewriteHref("../hf-papersX/2026-09-24.md"), "../hf-papersX/2026-09-24.md");
 });
 
 test("rewriteHref preserves a fragment on sibling digest links", () => {

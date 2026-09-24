@@ -34,6 +34,9 @@ TRENDING_URL = "https://github.com/trending?since=daily"
 USER_AGENT = "Mozilla/5.0 (compatible; briefing-digest/1.0; +https://briefing.kamata.page/)"
 MAX_REPOS = 25
 MAX_README_CHARS = 1200
+# Quotes, backslashes and newlines grow when JSON-escaped; keep the escaped value
+# well under the Read tool's 2,000-character line limit.
+MAX_README_JSON_CHARS = 1900
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # seconds, doubled each retry
 TIMEOUT = 30
@@ -74,7 +77,18 @@ def fetch_readme(repo: str) -> str:
     if result.returncode != 0:
         print(f"  readme failed {repo}: {result.stderr.strip()}", file=sys.stderr)
         return ""
-    return result.stdout[:MAX_README_CHARS]
+    return readme_excerpt(result.stdout)
+
+
+def readme_excerpt(text: str) -> str:
+    """Cut to MAX_README_CHARS, and shorter if the JSON-escaped value would exceed MAX_README_JSON_CHARS."""
+    excerpt = text[:MAX_README_CHARS]
+    escaped_len = 2  # the surrounding quotes
+    for i, ch in enumerate(excerpt):
+        escaped_len += len(json.dumps(ch, ensure_ascii=False)) - 2
+        if escaped_len >= MAX_README_JSON_CHARS:
+            return excerpt[:i]
+    return excerpt
 
 
 # ---------------------------------------------------------------------------

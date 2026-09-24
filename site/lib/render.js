@@ -1,12 +1,19 @@
 import MarkdownIt from "markdown-it";
+import { KINDS } from "./load.js";
 
-const SIBLING_RE = /^\.\.\/(arxiv|github|github-digest)\/(\d{4}-\d{2}-\d{2})\.md(#.*)?$/;
+// 旧ディレクトリ名 → サイト上の種類。既存の daily/*.md が ../github-digest/ を参照している。
+const KIND_ALIASES = { "github-digest": "github" };
+const SIBLING_DIRS = [...KINDS.map((k) => k.key), ...Object.keys(KIND_ALIASES)];
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const SIBLING_RE = new RegExp(
+  `^\\.\\./(${SIBLING_DIRS.map(escapeRe).join("|")})/(\\d{4}-\\d{2}-\\d{2})\\.md(#.*)?$`,
+);
 const ICON_RE = /^icons\/([\w.-]+\.svg)$/;
 
 export function rewriteHref(href) {
   const m = SIBLING_RE.exec(href);
   if (!m) return href;
-  const kind = m[1] === "arxiv" ? "arxiv" : "github";
+  const kind = KIND_ALIASES[m[1]] ?? m[1];
   return `/${m[2]}/${kind}/${m[3] ?? ""}`;
 }
 
