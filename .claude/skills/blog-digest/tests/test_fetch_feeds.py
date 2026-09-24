@@ -303,3 +303,33 @@ def test_main_uses_an_empty_existing_out_dir(tmp_path, monkeypatch):
     out.mkdir()
     fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
     assert (out / "manifest.json").exists()
+
+
+def test_main_clears_partial_output_dir_without_manifest(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    _stub_process_feed(monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "01-a.txt").write_text("partial")  # an interrupted run wrote feeds but no manifest
+    (out / "02-some-blog.txt").write_text("partial")
+    fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
+    assert not (out / "02-some-blog.txt").exists()
+    assert (out / "manifest.json").exists()
+
+
+def test_main_refuses_out_dir_with_our_files_plus_an_unrelated_file(tmp_path, monkeypatch, capsys):
+    import fetch_feeds
+
+    _stub_process_feed(monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "manifest.json").write_text("{}")
+    (out / "01-a.txt").write_text("stale")
+    (out / "notes.md").write_text("not ours")
+    with pytest.raises(SystemExit) as exc:
+        fetch_feeds.main(["--config", str(_write_config(tmp_path)), "--out-dir", str(out), "--since", "2030-01-01"])
+    assert exc.value.code not in (0, None)
+    assert "notes.md" in capsys.readouterr().err
+    assert (out / "notes.md").read_text() == "not ours"
+    assert (out / "01-a.txt").read_text() == "stale"
