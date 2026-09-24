@@ -8,10 +8,12 @@ allowed-tools:
   - "Bash(uv run */hf-papers-digest/scripts/fetch_hf_papers.py*)"
   - "Bash(uv run */blog-digest/scripts/fetch_feeds.py*)"
   - "Bash(uv run */trending-digest/scripts/fetch_trending.py*)"
-  - "Bash(git add *)"
-  - "Bash(git commit -m *)"
-  - "Bash(git push)"
-  - "Bash(git status:*)"
+  - "Bash(git worktree list:*)"
+  - "Bash(git -C * pull --ff-only)"
+  - "Bash(git -C * add *)"
+  - "Bash(git -C * commit -m *)"
+  - "Bash(git -C * push origin main)"
+  - "Bash(git -C * status:*)"
   - Read
   - Write
   - Edit
@@ -165,22 +167,29 @@ allowed-tools:
 
 ### Step 4: git コミットとプッシュ
 
-生成できたファイルを git にコミットし、リモートへプッシュする。コミットメッセージは生成対象日（YYYY-MM-DD）。
+生成できたファイルを **main ブランチ** にコミットし、リモートの main へプッシュする。作業用ブランチや PR は作らない。コミットメッセージは生成対象日（YYYY-MM-DD）。
+
+まず main をチェックアウトしているディレクトリ（`MAIN_DIR`）を特定する。通常は現在のディレクトリだが、セッションが別ブランチの worktree（`.claude/worktrees/...`）で動いている場合は元のリポジトリのルートになる。
 
 ```bash
-git add arxiv/YYYY-MM-DD.md hf-papers/YYYY-MM-DD.md hackernews/YYYY-MM-DD.md github/YYYY-MM-DD.md trending/YYYY-MM-DD.md blogs/YYYY-MM-DD.md company-blogs/YYYY-MM-DD.md daily/YYYY-MM-DD.md
-git commit -m "YYYY-MM-DD"
-git push
+MAIN_DIR=$(git worktree list --porcelain | awk '/^worktree /{p=$2} /^branch refs\/heads\/main$/{print p}')
+git -C "$MAIN_DIR" pull --ff-only
+# 現在のディレクトリが MAIN_DIR と異なる場合は、生成したファイルを MAIN_DIR の同じパスへコピーする
+git -C "$MAIN_DIR" add arxiv/YYYY-MM-DD.md hf-papers/YYYY-MM-DD.md hackernews/YYYY-MM-DD.md github/YYYY-MM-DD.md trending/YYYY-MM-DD.md blogs/YYYY-MM-DD.md company-blogs/YYYY-MM-DD.md daily/YYYY-MM-DD.md
+git -C "$MAIN_DIR" commit -m "YYYY-MM-DD"
+git -C "$MAIN_DIR" push origin main
 ```
 
 注意点:
 
+- `MAIN_DIR` に今回生成したファイル以外の未コミット変更があっても、それらは `git add` しない（生成したファイルだけを明示的に指定する）。
+- `git pull --ff-only` が失敗した場合（main が分岐しているなど）は、原因を報告して停止する。
 - `YYYY-MM-DD` はダイジェスト対象日（ファイル名と一致する日付）。当日生成なら今日の日付。
 - Step 1 で失敗した情報源のファイルは `git add` に含めない（存在するファイルのみを指定する）。
 - `.cache/` はコミットしない（`.gitignore` 済み）。
-- コミット成功後に `git status` で結果を確認する。
+- コミット成功後に `git -C "$MAIN_DIR" status` で結果を確認する。
 - pre-commit フックなどで失敗した場合は、原因を報告して停止する（`--no-verify` は使わない）。
-- コミット成功後に `git push` でリモートへ反映する。
+- コミット成功後に `git push origin main` でリモートの main へ反映する。
 - プッシュが失敗した場合（リモート拒否・認証エラー・upstream 未設定など）は、原因を報告して停止する。コミット自体は完了しているため、ファイルは失われない。
 
 ### Step 5: 完了報告
