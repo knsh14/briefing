@@ -3,6 +3,10 @@
     "allow": [
       "Bash(uv run python */arxiv-digest/scripts/fetch_arxiv.py*)",
       "Bash(uv run python */github-digest/scripts/fetch_github.py*)",
+      "Bash(uv run */hackernews-digest/scripts/fetch_hackernews.py*)",
+      "Bash(uv run */hf-papers-digest/scripts/fetch_hf_papers.py*)",
+      "Bash(uv run */blog-digest/scripts/fetch_feeds.py*)",
+      "Bash(uv run */trending-digest/scripts/fetch_trending.py*)",
       "Bash(mkdir -p */arxiv)",
       "Bash(mkdir -p */github)",
       "Bash(mkdir -p */daily)",
