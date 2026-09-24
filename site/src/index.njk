@@ -4,15 +4,16 @@ layout: base.njk
 title: "briefing"
 ---
 <h1>briefing</h1>
-<p>arXiv 新着論文と GitHub Issue/PR の日次ダイジェスト。</p>
+<p>arXiv、HF Daily Papers、Hacker News、GitHub、GitHub Trending、技術ブログの日次ダイジェスト。</p>
 <ul class="daylist">
 {% for day in digests.days %}
   <li>
     <a class="daylist-date" href="/{{ day.date }}/">{{ day.date }}</a>
     <span class="daylist-kinds">
       {% if day.daily %}<a href="/{{ day.date }}/">統合</a>{% endif %}
-      {% if day.arxiv %}<a href="/{{ day.date }}/arxiv/">arXiv</a>{% endif %}
-      {% if day.github %}<a href="/{{ day.date }}/github/">GitHub</a>{% endif %}
+      {% for kind in digests.kinds %}
+      {% if day[kind.key] %}<a href="/{{ day.date }}/{{ kind.key }}/">{{ kind.label }}</a>{% endif %}
+      {% endfor %}
     </span>
   </li>
 {% endfor %}

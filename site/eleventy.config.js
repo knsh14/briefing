@@ -1,11 +1,11 @@
 // site/eleventy.config.js
+import { SERIES } from "./lib/load.js";
+
 export default function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "../github/icons": "icons" });
   eleventyConfig.addPassthroughCopy("src/style.css");
 
-  eleventyConfig.addWatchTarget("../daily/");
-  eleventyConfig.addWatchTarget("../arxiv/");
-  eleventyConfig.addWatchTarget("../github/");
+  for (const key of SERIES) eleventyConfig.addWatchTarget(`../${key}/`);
   eleventyConfig.addWatchTarget("./lib/");
 
   return {

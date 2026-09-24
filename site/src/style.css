@@ -77,7 +77,7 @@ li + li { margin-top: 0.4rem; }
   font-size: 0.95rem;
 }
 .daynav-dates { display: flex; gap: 1rem; align-items: baseline; }
-.daynav-kinds a { margin-left: 0.75rem; }
+.daynav-kinds { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
 .daynav-kinds a[aria-current="page"] { font-weight: 700; color: var(--fg); }
 
 .daylist { list-style: none; padding: 0; }
@@ -88,4 +88,5 @@ li + li { margin-top: 0.4rem; }
   border-bottom: 1px solid var(--line);
 }
 .daylist-date { font-variant-numeric: tabular-nums; font-weight: 600; }
-.daylist-kinds a { margin-left: 0.75rem; color: var(--muted); }
+.daylist-kinds { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 0.75rem; }
+.daylist-kinds a { color: var(--muted); }

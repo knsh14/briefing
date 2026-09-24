@@ -1,7 +1,7 @@
 // site/src/_data/digests.js
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { readSeries, buildDays } from "../../lib/load.js";
+import { KINDS, SERIES, readSeries, buildDays, buildPages } from "../../lib/load.js";
 import { renderMarkdown } from "../../lib/render.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -9,18 +9,14 @@ const repoRoot = resolve(here, "../../..");
 
 export default function () {
   const days = buildDays(
-    {
-      daily: readSeries(resolve(repoRoot, "daily")),
-      arxiv: readSeries(resolve(repoRoot, "arxiv")),
-      github: readSeries(resolve(repoRoot, "github")),
-    },
+    Object.fromEntries(SERIES.map((key) => [key, readSeries(resolve(repoRoot, key))])),
     renderMarkdown,
   );
   return {
     days,
+    kinds: KINDS,
+    pages: buildPages(days),
     latest: days[0]?.date ?? null,
-    arxiv: days.filter((d) => d.arxiv),
-    github: days.filter((d) => d.github),
     feed: days.filter((d) => d.daily).slice(0, 30),
   };
 }

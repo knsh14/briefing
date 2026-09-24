@@ -1,0 +1,16 @@
+---
+pagination:
+  data: digests.pages
+  size: 1
+  alias: entry
+permalink: "/{{ entry.day.date }}/{{ entry.kind.key }}/"
+layout: base.njk
+eleventyComputed:
+  title: "{{ entry.day.date }} {{ entry.kind.label }} | briefing"
+---
+{% set day = entry.day %}
+{% set current = entry.kind.key %}
+{% include "daynav.njk" %}
+<article class="digest">
+  {{ day[entry.kind.key].html | safe }}
+</article>

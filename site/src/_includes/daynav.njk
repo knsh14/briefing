@@ -1,4 +1,4 @@
-{# 期待する変数: day, current ("daily" | "arxiv" | "github") #}
+{# 期待する変数: day, current ("daily" または KINDS の key) #}
 <nav class="daynav" aria-label="日付">
   <div class="daynav-dates">
     {% if day.prev %}<a href="/{{ day.prev }}/">← {{ day.prev }}</a>{% else %}<span></span>{% endif %}
@@ -7,7 +7,8 @@
   </div>
   <div class="daynav-kinds">
     <a href="/{{ day.date }}/"{% if current == "daily" %} aria-current="page"{% endif %}>統合</a>
-    {% if day.arxiv %}<a href="/{{ day.date }}/arxiv/"{% if current == "arxiv" %} aria-current="page"{% endif %}>arXiv</a>{% endif %}
-    {% if day.github %}<a href="/{{ day.date }}/github/"{% if current == "github" %} aria-current="page"{% endif %}>GitHub</a>{% endif %}
+    {% for kind in digests.kinds %}
+    {% if day[kind.key] %}<a href="/{{ day.date }}/{{ kind.key }}/"{% if current == kind.key %} aria-current="page"{% endif %}>{{ kind.label }}</a>{% endif %}
+    {% endfor %}
   </div>
 </nav>

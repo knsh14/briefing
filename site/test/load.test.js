@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DATE_RE, readSeries, buildDays } from "../lib/load.js";
+import { DATE_RE, KINDS, SERIES, readSeries, buildDays, buildPages } from "../lib/load.js";
 
 const upper = (s) => s.toUpperCase();
+const empty = Object.fromEntries(SERIES.map((k) => [k, null]));
 
 test("DATE_RE matches only YYYY-MM-DD.md", () => {
   assert.ok(DATE_RE.test("2026-08-11.md"));
@@ -13,6 +14,13 @@ test("DATE_RE matches only YYYY-MM-DD.md", () => {
   assert.ok(!DATE_RE.test("SKILL.md"));
   assert.ok(!DATE_RE.test("2026-08-11.txt"));
   assert.ok(!DATE_RE.test("icons"));
+});
+
+test("KINDS keeps existing kinds and adds the new sources in nav order", () => {
+  assert.deepEqual(KINDS.map((k) => k.key), [
+    "arxiv", "hf-papers", "hackernews", "github", "trending", "blogs", "company-blogs",
+  ]);
+  assert.deepEqual(SERIES, ["daily", ...KINDS.map((k) => k.key)]);
 });
 
 test("readSeries returns only date files with their text", (t) => {
@@ -29,29 +37,34 @@ test("readSeries returns only date files with their text", (t) => {
   ]);
 });
 
+test("readSeries returns [] for a missing directory", () => {
+  assert.deepEqual(readSeries(join(tmpdir(), "briefing-does-not-exist-xyz")), []);
+});
+
 test("buildDays groups by date, newest first, with prev/next", () => {
   const days = buildDays(
     {
       daily: [{ date: "2026-08-11", text: "d11" }],
       arxiv: [{ date: "2026-08-11", text: "a11" }, { date: "2026-08-10", text: "a10" }],
       github: [{ date: "2026-08-09", text: "g09" }],
+      hackernews: [{ date: "2026-08-10", text: "h10" }],
     },
     upper,
   );
   assert.deepEqual(days.map((d) => d.date), ["2026-08-11", "2026-08-10", "2026-08-09"]);
   assert.deepEqual(days[0], {
+    ...empty,
     date: "2026-08-11",
     daily: { html: "D11" },
     arxiv: { html: "A11" },
-    github: null,
     prev: "2026-08-10",
     next: null,
   });
   assert.deepEqual(days[1], {
+    ...empty,
     date: "2026-08-10",
-    daily: null,
     arxiv: { html: "A10" },
-    github: null,
+    hackernews: { html: "H10" },
     prev: "2026-08-09",
     next: "2026-08-11",
   });
@@ -61,4 +74,18 @@ test("buildDays groups by date, newest first, with prev/next", () => {
 
 test("buildDays returns [] when every series is empty", () => {
   assert.deepEqual(buildDays({ daily: [], arxiv: [], github: [] }, upper), []);
+});
+
+test("buildPages yields one page per existing (day, kind) in KINDS order", () => {
+  const days = buildDays(
+    {
+      daily: [{ date: "2026-08-11", text: "d" }],
+      github: [{ date: "2026-08-11", text: "g" }],
+      "hf-papers": [{ date: "2026-08-11", text: "h" }],
+      blogs: [{ date: "2026-08-10", text: "b" }],
+    },
+    upper,
+  );
+  const pages = buildPages(days).map((p) => `${p.day.date}/${p.kind.key}`);
+  assert.deepEqual(pages, ["2026-08-11/hf-papers", "2026-08-11/github", "2026-08-10/blogs"]);
 });
