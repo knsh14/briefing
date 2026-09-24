@@ -11,7 +11,14 @@
     {"name": "Netflix TechBlog", "url": "https://netflixtechblog.com/feed"},
     {"name": "NVIDIA Technical Blog", "url": "https://developer.nvidia.com/blog/feed/"},
     {"name": "Waymo", "url": "https://waymo.com/blog/rss.xml"},
-    {"name": "Wayve", "url": "https://wayve.ai/wp-content/themes/wayve/rss-feed.php"},
+    {
+      "name": "Wayve",
+      "url": "https://wayve.ai/wp-content/themes/wayve/rss-feed.php",
+      "include_links_from": [
+        "https://wayve.ai/thinking/category/engineering/",
+        "https://wayve.ai/thinking/category/research/"
+      ]
+    },
     {"name": "Meta Engineering", "url": "https://engineering.fb.com/feed/"},
     {"name": "Microsoft Research", "url": "https://www.microsoft.com/en-us/research/feed/"},
     {"name": "Stripe", "url": "https://stripe.com/blog/feed.rss"},

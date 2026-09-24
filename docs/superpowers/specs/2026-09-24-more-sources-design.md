@@ -128,6 +128,8 @@ D 当日の記事は前回と重複しうるが、取りこぼしよりましと
 }
 ```
 
+各フィードには任意で `include_links_from`（ページURLの配列）を指定できる。指定した場合、そのページ群を取得してリンクを抽出し、フィードの記事のうちリンクがいずれかと一致するものだけを残す（本文取得や `max_items_per_feed` の適用より前に絞り込む）。ページの取得に一つでも失敗した場合は、全件を含める形にフォールバックせず、フィード全体を失敗として `manifest.json` の `errors` に記録する。
+
 ### fetch_trending.py
 
 - `https://github.com/trending?since=daily` の HTML を `beautifulsoup4` で解析し、最大25件を取る（実際の掲載数は日によって十数件）。
@@ -177,7 +179,7 @@ D 当日の記事は前回と重複しうるが、取りこぼしよりましと
 | Netflix TechBlog | https://netflixtechblog.com/feed |
 | NVIDIA Technical Blog | https://developer.nvidia.com/blog/feed/ |
 | Waymo | https://waymo.com/blog/rss.xml |
-| Wayve | https://wayve.ai/wp-content/themes/wayve/rss-feed.php |
+| Wayve | https://wayve.ai/wp-content/themes/wayve/rss-feed.php（`include_links_from` で `thinking/category/engineering/` と `research/` に絞り込む） |
 | Meta Engineering | https://engineering.fb.com/feed/ |
 | Microsoft Research | https://www.microsoft.com/en-us/research/feed/ |
 | Stripe | https://stripe.com/blog/feed.rss |

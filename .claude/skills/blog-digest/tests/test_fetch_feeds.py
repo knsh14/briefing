@@ -11,8 +11,11 @@ from fetch_feeds import (
     compute_since,
     dates_in_dir,
     error_text,
+    extract_links,
     format_feed,
     html_to_text,
+    normalize_url,
+    process_feed,
     select_entries,
     slugify,
 )
@@ -113,6 +116,56 @@ def test_select_entries_reads_atom_updated_and_author():
             "summary": "Hello",
         }
     ]
+
+
+def test_extract_links_resolves_relative_urls():
+    html = """
+    <html><body>
+    <a href="/thinking/post-a/">A</a>
+    <a href="https://other.example/absolute">B</a>
+    <a href="post-b/">C</a>
+    <div>no href here</div>
+    </body></html>
+    """
+    assert extract_links(html, "https://wayve.ai/thinking/category/engineering/") == [
+        "https://wayve.ai/thinking/post-a/",
+        "https://other.example/absolute",
+        "https://wayve.ai/thinking/category/engineering/post-b/",
+    ]
+
+
+def test_normalize_url_ignores_scheme_trailing_slash_query_and_fragment():
+    assert normalize_url("https://x.example/a/b/") == normalize_url("http://x.example/a/b")
+    assert normalize_url("https://x.example/a/b?x=1") == normalize_url("https://x.example/a/b")
+    assert normalize_url("https://x.example/a/b#frag") == normalize_url("https://x.example/a/b")
+    assert normalize_url("https://x.example/a/b") != normalize_url("https://x.example/a/c")
+
+
+def test_select_entries_filters_by_allowed_links_before_max_items():
+    allowed = {normalize_url("https://b.example/newer")}
+    items = select_entries(feedparser.parse(RSS).entries, date(2026, 9, 17), max_items=5, allowed_links=allowed)
+    assert [i["title"] for i in items] == ["Newer post"]
+    # A max_items smaller than the allowed set still keeps only allowed items, not just the newest N.
+    items = select_entries(feedparser.parse(RSS).entries, date(2026, 9, 17), max_items=1, allowed_links=allowed)
+    assert [i["title"] for i in items] == ["Newer post"]
+
+
+def test_process_feed_fails_whole_feed_when_include_links_from_page_fetch_fails(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    def fake_http_get_bytes(url):
+        if url == "https://b.example/feed":
+            return RSS.encode("utf-8")
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(fetch_feeds, "http_get_bytes", fake_http_get_bytes)
+    feed = {
+        "name": "B",
+        "url": "https://b.example/feed",
+        "include_links_from": ["https://b.example/category/"],
+    }
+    with pytest.raises(RuntimeError):
+        fetch_feeds.process_feed(1, feed, date(2026, 9, 17), 5, str(tmp_path))
 
 
 def test_choose_body_prefers_long_feed_text_without_fetching():

@@ -29,11 +29,13 @@ import shutil
 import sys
 import textwrap
 import time
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from datetime import time as dtime
 from html import unescape
+from html.parser import HTMLParser
 
 import feedparser
 import trafilatura
@@ -43,7 +45,7 @@ import trafilatura
 # Constants
 # ---------------------------------------------------------------------------
 
-USER_AGENT = "Mozilla/5.0 (compatible; briefing-digest/1.0; +https://briefing.kamata.page/)"
+USER_AGENT = "Mozilla/5.0 (briefing-digest/1.0; +https://briefing.kamata.page/)"
 DATE_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 MAX_LOOKBACK_DAYS = 7
 DEFAULT_MAX_ITEMS = 5
@@ -129,7 +131,35 @@ def entry_datetime(entry) -> datetime | None:
     return None
 
 
-def select_entries(entries, since: date, max_items: int) -> list[dict]:
+class _HrefParser(HTMLParser):
+    """Collects every <a href> in document order."""
+
+    def __init__(self):
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "a":
+            return
+        for key, value in attrs:
+            if key == "href" and value:
+                self.hrefs.append(value)
+
+
+def extract_links(html: str, base_url: str) -> list[str]:
+    """Return every <a href> in html, resolved against base_url."""
+    parser = _HrefParser()
+    parser.feed(html or "")
+    return [urllib.parse.urljoin(base_url, href) for href in parser.hrefs]
+
+
+def normalize_url(url: str) -> str:
+    """Normalize a URL for comparison: ignore scheme, trailing slash, query and fragment."""
+    parsed = urllib.parse.urlsplit(url)
+    return f"{parsed.netloc}{parsed.path.rstrip('/')}"
+
+
+def select_entries(entries, since: date, max_items: int, allowed_links: set[str] | None = None) -> list[dict]:
     # State files are named by local date, so the period starts at local midnight.
     since_dt = datetime.combine(since, dtime.min).astimezone()
     picked = []
@@ -137,11 +167,14 @@ def select_entries(entries, since: date, max_items: int) -> list[dict]:
         published = entry_datetime(entry)
         if published is None or published < since_dt:
             continue
+        link = entry.get("link") or ""
+        if allowed_links is not None and normalize_url(link) not in allowed_links:
+            continue
         contents = entry.get("content") or []
         picked.append(
             {
                 "title": " ".join((entry.get("title") or "").split()),
-                "link": entry.get("link") or "",
+                "link": link,
                 "published": published.isoformat(),
                 "author": entry.get("author") or "",
                 "feed_text": html_to_text(contents[0].get("value", "")) if contents else "",
@@ -201,13 +234,24 @@ def extract_page(url: str) -> str | None:
         return None
 
 
+def fetch_allowed_links(page_urls: list[str]) -> set[str]:
+    """Fetch each page and collect its normalized article links. Raises if any page fetch fails."""
+    allowed = set()
+    for page_url in page_urls:
+        html = http_get_bytes(page_url).decode("utf-8", errors="replace")
+        allowed.update(normalize_url(href) for href in extract_links(html, page_url))
+    return allowed
+
+
 def process_feed(index: int, feed: dict, since: date, max_items: int, out_dir: str) -> dict:
     name, url = feed["name"], feed["url"]
     print(f"Fetching {name}...", file=sys.stderr)
     parsed = feedparser.parse(http_get_bytes(url))
     if parsed.bozo and not parsed.entries:
         raise ValueError(f"unparseable feed: {parsed.get('bozo_exception')}")
-    items = select_entries(parsed.entries, since, max_items)
+    include_links_from = feed.get("include_links_from")
+    allowed_links = fetch_allowed_links(include_links_from) if include_links_from else None
+    items = select_entries(parsed.entries, since, max_items, allowed_links)
     for item in items:
         link = item["link"]
         item["body"], item["body_source"] = choose_body(

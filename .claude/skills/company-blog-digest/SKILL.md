@@ -16,7 +16,7 @@ allowed-tools:
 
 ## 設定ファイル
 
-`<skill-dir>/feeds.json`。形式は `blog-digest` と同じ。
+`<skill-dir>/feeds.json`。形式は `blog-digest` と同じ。各フィードには任意で `include_links_from`（ページURLの配列）を指定でき、指定するとそれらのページに載っているリンクに一致する記事だけを対象にする（詳細は `blog-digest` の SKILL.md を参照）。
 
 ## ワークフロー
 
