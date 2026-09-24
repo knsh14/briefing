@@ -24,8 +24,8 @@ uv run <skill-dir>/scripts/fetch_trending.py --out .cache/trending-YYYY-MM-DD.js
 ```
 
 - README の取得に `gh` CLI を使う。未認証なら `gh auth login` をユーザーに案内する（README なしでも続行できる）。
-- 終了コード1は Trending ページを解析できなかったことを表す。原因（`error`）を報告して停止する。
-- 終了コードが0以外で `--out` のファイルが書かれていない場合は、Trending ページ自体を取得できなかったことを表す。標準エラーの内容を報告して停止する。
+- 終了コードが0以外なら、標準エラーの内容を報告して停止する。
+- そのうえで、今回の実行の標準エラーに `Wrote <path>` の行があるときだけ、そのファイルを読んで `error` も報告する（Trending ページの解析失敗）。`Wrote` の行がなければ Trending ページ自体を取得できていない。同日の以前の実行で残った `.cache/trending-YYYY-MM-DD.json` は読まない。
 
 ### Step 2: 読み込み
 
@@ -91,5 +91,5 @@ Read で `.cache/trending-YYYY-MM-DD.json` を読む。
 
 ## エラーハンドリング
 
-- 終了コード1で `--out` のファイルに `error` がある場合（解析失敗）は、GitHub の HTML 構造が変わった可能性があるとして報告し、停止する。
-- 終了コードが0以外で `--out` のファイルが書かれていない場合は、Trending ページ自体を取得できなかったとして標準エラーの内容を報告し、停止する。
+- スクリプトが0以外で終了した場合は、標準エラーの内容を報告して停止する。
+- 今回の実行の標準エラーに `Wrote <path>` の行があるときだけ、そのファイルの `error` も報告し、GitHub の HTML 構造が変わった可能性があると伝える。`Wrote` の行がない場合は Trending ページ自体を取得できなかったものとして扱い、既存の `.cache/trending-YYYY-MM-DD.json` を読まない。

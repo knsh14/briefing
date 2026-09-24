@@ -77,6 +77,7 @@ uv run <skills-dir>/blog-digest/scripts/fetch_feeds.py --config <skill-dir>/feed
 ```
 
 - 記事が0件のフィードは節を作らない。
+- `author` にメールアドレスが含まれる場合は、アドレスとそれを囲む括弧を取り除いてから書く（例: `Jane Doe (jane@example.com)` は `Jane Doe`）。取り除いた結果が空なら著者を省く。
 - `feeds` が空なら「対象期間に新着記事はありません」と書く。
 - `errors` が空なら「取得に失敗したフィード」の節を省く。
 

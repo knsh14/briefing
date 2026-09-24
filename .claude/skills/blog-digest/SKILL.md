@@ -85,6 +85,7 @@ uv run <skill-dir>/scripts/fetch_feeds.py --config <skill-dir>/feeds.json --out-
 ```
 
 - 記事が0件のフィードは節を作らない。
+- `author` にメールアドレスが含まれる場合は、アドレスとそれを囲む括弧を取り除いてから書く（例: `Jane Doe (jane@example.com)` は `Jane Doe`）。取り除いた結果が空なら著者を省く。
 - `feeds` が空なら、ハイライトと本文の代わりに「対象期間に新着記事はありません」と書く。
 - `errors` が空なら「取得に失敗したフィード」の節を省く。
 

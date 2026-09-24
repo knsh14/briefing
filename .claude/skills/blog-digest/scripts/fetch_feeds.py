@@ -9,8 +9,9 @@ Usage:
     uv run fetch_feeds.py --config feeds.json --out-dir .cache/blogs-2026-09-24 --state-dir blogs
     uv run fetch_feeds.py --config feeds.json --out-dir DIR --since 2026-09-20
 
-The period starts at 00:00 UTC of --since, or of the newest YYYY-MM-DD.md in
---state-dir dated before today, capped at 7 days back.
+The period starts at 00:00 UTC of a start date: --since if given, otherwise the
+newest YYYY-MM-DD.md in --state-dir dated before today (the local date, matching
+how state files are named), capped at 7 days before today.
 
 Output (in --out-dir, cleared first):
     manifest.json   {since, feeds: [{name, url, file, count}], errors: [{name, url, error}]}
@@ -233,7 +234,7 @@ def main(argv: list[str] | None = None) -> None:
         config = json.load(f)
     feeds = config["feeds"]
     max_items = config.get("max_items_per_feed", DEFAULT_MAX_ITEMS)
-    today = datetime.now(timezone.utc).date()
+    today = date.today()  # local date: state files are named by local date
     since = date.fromisoformat(args.since) if args.since else compute_since(dates_in_dir(args.state_dir), today)
 
     shutil.rmtree(args.out_dir, ignore_errors=True)

@@ -137,3 +137,32 @@ def test_format_feed_wraps_long_lines():
     assert "## 1. T\nLink: https://b.example/t\n" in text
     assert "Body-Source: page\n" in text
     assert max(len(line) for line in text.splitlines()) <= 200
+
+
+def test_main_uses_local_date_for_period(tmp_path, monkeypatch):
+    import json
+    import fetch_feeds
+
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2030, 1, 10)
+
+    monkeypatch.setattr(fetch_feeds, "date", FakeDate)
+    seen = {}
+
+    def fake_process_feed(index, feed, since, max_items, out_dir):
+        seen["since"] = since
+        return {"name": feed["name"], "url": feed["url"], "file": "01-x.txt", "count": 0}
+
+    monkeypatch.setattr(fetch_feeds, "process_feed", fake_process_feed)
+    state = tmp_path / "blogs"
+    state.mkdir()
+    (state / "2030-01-08.md").write_text("x")
+    (state / "2030-01-10.md").write_text("x")  # today's own file is ignored
+    config = tmp_path / "feeds.json"
+    config.write_text(json.dumps({"feeds": [{"name": "A", "url": "https://a.example/feed"}]}))
+    out = tmp_path / "out"
+    fetch_feeds.main(["--config", str(config), "--out-dir", str(out), "--state-dir", str(state)])
+    assert seen["since"] == date(2030, 1, 8)
+    assert json.loads((out / "manifest.json").read_text())["since"] == "2030-01-08"
