@@ -12,7 +12,9 @@ allowed-tools:
 
 # GitHub リポジトリ・ダイジェスト
 
-監視対象の GitHub リポジトリについて、直近24時間に更新された Issue（最新50件）と PR（最新50件）のアクティビティを取得し、リポジトリごとに日本語で要約して Markdown ファイルとして保存する。
+監視対象の GitHub リポジトリについて、前回のダイジェスト以降に更新された Issue（最新50件）と PR（最新50件）のアクティビティを取得し、リポジトリごとに日本語で要約して Markdown ファイルとして保存する。
+
+対象期間は前回のダイジェスト（`github/` への main 上の最後のコミット。今日のコミットは除く）の1時間前から今までで、最大7日。前回がなければ直近24時間。
 
 ## 設定ファイル
 
@@ -50,13 +52,14 @@ Agent(model=opus, repo="owner/repo3") ──→ JSON3
 各 subagent は以下を実行する:
 
 ```bash
-uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo}
+uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo} --state-dir github
 ```
 
 - リポジトリあたり Issue 最大50件、PR 最大50件を取得（updated_at 降順）
 - 各 Issue/PR には title, body, comments, labels, state が含まれる
 - PR にはさらに pr_details (merged, additions, deletions), files, reviews が含まれる
 - エラーが発生したリポジトリは `error` フィールドに記録される
+- 出力 JSON の `since` が対象期間の開始時刻（UTC）
 
 ### Step 3: サマリー生成・構成・保存
 
@@ -81,7 +84,7 @@ uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo}
 - body とコメントの内容に忠実に書く。推測や外部知識で補わない
 - **本文を原語のままコピーしないこと**。body・コメントを日本語に翻訳して要約する。【問題】【解決】などのサブ見出しを使う場合も、その中身は必ず日本語で記述する（英文をそのまま貼り付けない）
 - 技術用語・固有名詞・識別子（関数名、API 名、ファイル名、エラーメッセージなど）は原文のまま残す
-- コメントが0件の場合は「直近24時間のコメントなし」と記載
+- コメントが0件の場合は「対象期間のコメントなし」と記載
 
 ### Step 4: Markdown ファイルの保存
 
@@ -93,6 +96,8 @@ uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo}
 
 ```markdown
 # GitHub ダイジェスト — YYYY-MM-DD
+
+> 対象期間: {since} 以降
 
 ## 本日のハイライト
 
@@ -168,5 +173,5 @@ uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo}
 
 - `gh` CLI が認証されていない場合は、`gh auth login` の実行をユーザーに案内する
 - 特定のリポジトリの取得に失敗した場合、そのリポジトリをスキップして他を続行する
-- アクティビティが0件のリポジトリは「直近24時間の更新はありません」と記載する
+- アクティビティが0件のリポジトリは「対象期間の更新はありません」と記載する
 - API レート制限に達した場合は、取得できた分までで生成し、残りをスキップした旨を報告する

@@ -1,6 +1,8 @@
 import urllib.parse
+from datetime import datetime
 
 from fetch_hackernews import (
+    compute_since,
     error_text,
     html_to_text,
     merge_keyword_hits,
@@ -93,3 +95,23 @@ def test_parse_comment_truncates():
 
 def test_error_text_truncates():
     assert error_text(Exception("e" * 600), max_chars=500) == "e" * 500
+
+
+def ts(*args):
+    return int(datetime(*args).timestamp())
+
+
+def test_compute_since_defaults_to_24_hours_back():
+    now = ts(2026, 9, 28, 8, 0)
+    assert compute_since([], now) == ts(2026, 9, 27, 8, 0)
+
+
+def test_compute_since_uses_latest_prior_commit_minus_margin_and_ignores_today():
+    now = ts(2026, 9, 28, 8, 0)
+    times = [ts(2026, 9, 28, 7, 0), ts(2026, 9, 25, 7, 54), ts(2026, 9, 24, 16, 28)]
+    assert compute_since(times, now) == ts(2026, 9, 25, 6, 54)
+
+
+def test_compute_since_caps_lookback_at_seven_days():
+    now = ts(2026, 9, 28, 8, 0)
+    assert compute_since([ts(2026, 9, 1, 8, 0)], now) == ts(2026, 9, 21, 8, 0)

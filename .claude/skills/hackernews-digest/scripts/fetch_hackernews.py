@@ -3,12 +3,17 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Fetch top Hacker News stories and keyword matches from the last 24 hours.
+"""Fetch top Hacker News stories and keyword matches posted since the previous digest.
 
 Usage:
     uv run fetch_hackernews.py                               # Use keywords.json next to the skill
     uv run fetch_hackernews.py path/to/keywords.json
-    uv run fetch_hackernews.py --out .cache/hackernews-2026-09-24.json
+    uv run fetch_hackernews.py --out .cache/hackernews-2026-09-24.json --state-dir hackernews
+    uv run fetch_hackernews.py --since 2026-09-24T08:00:00+09:00
+
+The period starts at --since if given. Otherwise it starts at the newest commit on
+main that touched --state-dir and was made before today (local date), minus a 1-hour
+margin, capped at 7 days back. Without a usable commit it falls back to 24 hours.
 
 Output: JSON to --out (or stdout). Progress and errors go to stderr.
 """
@@ -17,6 +22,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -34,7 +40,9 @@ SEARCH_URL = "https://hn.algolia.com/api/v1/search"
 FIREBASE_ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
 HN_ITEM_URL = "https://news.ycombinator.com/item?id={id}"
 USER_AGENT = "briefing-digest/1.0 (+https://briefing.kamata.page/)"
-WINDOW_SECONDS = 24 * 60 * 60
+DEFAULT_WINDOW_SECONDS = 24 * 60 * 60
+MAX_LOOKBACK_SECONDS = 7 * 24 * 60 * 60
+STATE_MARGIN_SECONDS = 60 * 60  # the digest is committed after fetching and summarizing
 HITS_PER_PAGE = 200
 TOP_N = 30
 MAX_KEYWORD_MATCHES = 20
@@ -66,6 +74,30 @@ def http_get_json(url: str):
             if attempt < MAX_RETRIES - 1:
                 time.sleep(RETRY_BACKOFF * 2**attempt)
     raise RuntimeError(f"GET {url} failed: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# Period
+# ---------------------------------------------------------------------------
+
+
+def commit_times(state_dir: str) -> list[int]:
+    """Epoch times of recent commits on main that touched state_dir; [] if git fails."""
+    cmd = ["git", "log", "-n", "20", "--format=%ct", "main", "--", state_dir]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [int(t) for t in out.split()]
+
+
+def compute_since(times: list[int], now: int) -> int:
+    """Start of the period from state-dir commit times (see the module docstring)."""
+    today = datetime.fromtimestamp(now).date()
+    prior = [t for t in times if datetime.fromtimestamp(t).date() < today]
+    if not prior:
+        return now - DEFAULT_WINDOW_SECONDS
+    return max(max(prior) - STATE_MARGIN_SECONDS, now - MAX_LOOKBACK_SECONDS)
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +237,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("config", nargs="?", default=default_config_path())
     parser.add_argument("--out")
+    parser.add_argument("--state-dir", help="digest output dir whose last commit on main starts the period")
+    parser.add_argument("--since", help="ISO 8601 date or datetime (local if no offset); overrides --state-dir")
     args = parser.parse_args(argv)
 
     with open(args.config, encoding="utf-8") as f:
@@ -212,7 +246,11 @@ def main(argv: list[str] | None = None) -> None:
     min_points = config.get("min_points", DEFAULT_MIN_POINTS)
 
     now = int(time.time())
-    since_ts = now - WINDOW_SECONDS
+    if args.since:
+        since_ts = int(datetime.fromisoformat(args.since).timestamp())
+    else:
+        since_ts = compute_since(commit_times(args.state_dir) if args.state_dir else [], now)
+    print(f"Period starts at {datetime.fromtimestamp(since_ts).astimezone().isoformat()}", file=sys.stderr)
     errors = []
 
     print("Fetching top stories...", file=sys.stderr)
@@ -233,7 +271,7 @@ def main(argv: list[str] | None = None) -> None:
     write_output(
         {
             "generated_at": datetime.fromtimestamp(now, timezone.utc).isoformat(),
-            "since": datetime.fromtimestamp(since_ts, timezone.utc).isoformat(),
+            "since": datetime.fromtimestamp(since_ts).astimezone().isoformat(timespec="minutes"),
             "top": top,
             "keyword_matches": matches,
             "errors": errors,

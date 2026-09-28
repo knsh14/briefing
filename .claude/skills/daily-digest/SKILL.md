@@ -47,8 +47,8 @@ allowed-tools:
 
 - `arxiv-digest`: カテゴリごとの論文数
 - `hf-papers-digest`: 対象日と論文数
-- `hackernews-digest`: 上位記事数とキーワード一致数
-- `github-digest`: リポジトリごとの Issue/PR 数
+- `hackernews-digest`: 対象期間と上位記事数、キーワード一致数
+- `github-digest`: 対象期間とリポジトリごとの Issue/PR 数
 - `trending-digest`: リポジトリ数
 - `blog-digest`: 対象期間とフィードごとの記事数、失敗したフィード
 - `company-blog-digest`: 対象期間とフィードごとの記事数、失敗したフィード

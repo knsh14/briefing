@@ -1,6 +1,6 @@
 ---
 name: hackernews-digest
-description: "Hacker News の直近24時間の上位記事と、関心キーワードに合う記事を取得し、日本語サマリーを Markdown に保存するスキル。「Hacker News」「HN」「ハッカーニュース」「HN ダイジェスト」などで発動する。"
+description: "Hacker News の前回のダイジェスト以降の上位記事と、関心キーワードに合う記事を取得し、日本語サマリーを Markdown に保存するスキル。「Hacker News」「HN」「ハッカーニュース」「HN ダイジェスト」などで発動する。"
 allowed-tools:
   - "Bash(uv run */hackernews-digest/scripts/fetch_hackernews.py*)"
   - Read
@@ -11,7 +11,9 @@ allowed-tools:
 
 # Hacker News ダイジェスト
 
-Hacker News の直近24時間の上位30件と、`keywords.json` のキーワードにタイトルが合う記事（最大20件）を取得し、日本語で要約して `hackernews/YYYY-MM-DD.md` に保存する。
+Hacker News に前回のダイジェスト以降に投稿された記事から、上位30件と、`keywords.json` のキーワードにタイトルが合う記事（最大20件）を取得し、日本語で要約して `hackernews/YYYY-MM-DD.md` に保存する。
+
+対象期間は前回のダイジェスト（`hackernews/` への main 上の最後のコミット。今日のコミットは除く）の1時間前から今までで、最大7日。前回がなければ直近24時間。
 
 ## 設定ファイル
 
@@ -31,7 +33,7 @@ Hacker News の直近24時間の上位30件と、`keywords.json` のキーワー
 ### Step 1: データ取得
 
 ```bash
-uv run <skill-dir>/scripts/fetch_hackernews.py --out .cache/hackernews-YYYY-MM-DD.json
+uv run <skill-dir>/scripts/fetch_hackernews.py --out .cache/hackernews-YYYY-MM-DD.json --state-dir hackernews
 ```
 
 - 上位記事の検索に失敗するとスクリプトは異常終了する。その場合は原因を報告して停止する。
@@ -42,6 +44,7 @@ uv run <skill-dir>/scripts/fetch_hackernews.py --out .cache/hackernews-YYYY-MM-D
 Read で `.cache/hackernews-YYYY-MM-DD.json` を読む。
 1回で読み切れないときは `offset` と `limit` を使って分けて読む。
 
+`since` が対象期間の開始時刻。
 各記事は `title`、`url`、`hn_url`、`points`、`num_comments`、`comments`（HN の表示順で先頭の最大3件）を持つ。
 `keyword_matches` の記事は、さらに `matched_keywords` を持つ。
 
@@ -61,6 +64,8 @@ Read で `.cache/hackernews-YYYY-MM-DD.json` を読む。
 
 ```markdown
 # Hacker News ダイジェスト — YYYY-MM-DD
+
+> 対象期間: {since} 以降
 
 ## 本日のハイライト
 

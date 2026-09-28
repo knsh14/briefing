@@ -4,6 +4,12 @@
 Usage:
     python fetch_github.py repos.json              # Fetch all repos in config
     python fetch_github.py --repo owner/repo        # Fetch a single repo
+    python fetch_github.py --repo owner/repo --state-dir github
+    python fetch_github.py --repo owner/repo --since 2026-09-24T08:00:00+09:00
+
+The period starts at --since if given. Otherwise it starts at the newest commit on
+main that touched --state-dir and was made before today (local date), minus a 1-hour
+margin, capped at 7 days back. Without a usable commit it falls back to 24 hours.
 
 Output: JSON to stdout with items grouped by repository.
 Progress and errors go to stderr.
@@ -24,6 +30,9 @@ from datetime import datetime, timezone, timedelta
 MAX_ISSUES = 50
 MAX_PRS = 50
 MAX_COMMENTS_PAGES = 3  # max pages of comments to fetch (300 comments)
+DEFAULT_WINDOW = timedelta(hours=24)
+MAX_LOOKBACK = timedelta(days=7)
+STATE_MARGIN = timedelta(hours=1)  # the digest is committed after fetching and summarizing
 
 
 # ---------------------------------------------------------------------------
@@ -101,10 +110,32 @@ def run_gh_api_paginated(endpoint: str) -> list:
 # ---------------------------------------------------------------------------
 
 
-def get_since_timestamp() -> str:
-    """Return ISO8601 timestamp for 24 hours ago."""
-    dt = datetime.now(timezone.utc) - timedelta(hours=24)
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+def commit_times(state_dir: str) -> list[datetime]:
+    """Times of recent commits on main that touched state_dir; [] if git fails."""
+    cmd = ["git", "log", "-n", "20", "--format=%ct", "main", "--", state_dir]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [datetime.fromtimestamp(int(t), timezone.utc) for t in out.split()]
+
+
+def compute_since(times: list[datetime], now: datetime) -> datetime:
+    """Start of the period from state-dir commit times (see the module docstring)."""
+    today = now.astimezone().date()
+    prior = [t for t in times if t.astimezone().date() < today]
+    if not prior:
+        return now - DEFAULT_WINDOW
+    return max(max(prior) - STATE_MARGIN, now - MAX_LOOKBACK)
+
+
+def get_since_timestamp(state_dir: str | None, since: str | None) -> str:
+    """Return the period start as an ISO8601 UTC timestamp."""
+    if since:
+        dt = datetime.fromisoformat(since).astimezone(timezone.utc)
+    else:
+        dt = compute_since(commit_times(state_dir) if state_dir else [], datetime.now(timezone.utc))
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def fetch_issues_and_prs(repo: str, since: str) -> list[dict]:
@@ -177,7 +208,7 @@ def fetch_repo(repo: str, since: str) -> dict:
     """
     print(f"Fetching {repo} …", file=sys.stderr)
 
-    # 1. Get issues and PRs updated in the last 24h
+    # 1. Get issues and PRs updated in the period
     raw_items = fetch_issues_and_prs(repo, since)
     if raw_items is None:
         return {"items": [], "error": f"Failed to fetch issues for {repo}"}
@@ -188,7 +219,7 @@ def fetch_repo(repo: str, since: str) -> dict:
         if item.get("updated_at", "") >= since
     ]
 
-    # 2. Get comments from the last 24h and group by issue number
+    # 2. Get comments from the period and group by issue number
     all_comments = fetch_comments(repo, since)
     comments_by_number: dict[int, list] = {}
     for c in all_comments:
@@ -324,12 +355,20 @@ def main() -> None:
     # Parse arguments
     repos: list[str] = []
     config_path: str | None = None
+    state_dir: str | None = None
+    since_arg: str | None = None
 
     args = sys.argv[1:]
     i = 0
     while i < len(args):
         if args[i] == "--repo" and i + 1 < len(args):
             repos.append(args[i + 1])
+            i += 2
+        elif args[i] == "--state-dir" and i + 1 < len(args):
+            state_dir = args[i + 1]
+            i += 2
+        elif args[i] == "--since" and i + 1 < len(args):
+            since_arg = args[i + 1]
             i += 2
         else:
             config_path = args[i]
@@ -341,7 +380,7 @@ def main() -> None:
         if os.path.exists(default):
             config_path = default
         else:
-            print("Usage: fetch_github.py [repos.json] [--repo owner/repo]", file=sys.stderr)
+            print("Usage: fetch_github.py [repos.json] [--repo owner/repo] [--state-dir DIR] [--since ISO8601]", file=sys.stderr)
             sys.exit(1)
 
     if not repos and config_path:
@@ -351,7 +390,7 @@ def main() -> None:
     if not check_auth():
         sys.exit(1)
 
-    since = get_since_timestamp()
+    since = get_since_timestamp(state_dir, since_arg)
     print(f"Fetching activity since {since}", file=sys.stderr)
 
     # Fetch each repo
