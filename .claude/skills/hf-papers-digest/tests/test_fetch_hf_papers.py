@@ -1,6 +1,9 @@
-from datetime import date
+import time
+from datetime import date, datetime, timezone
 
-from fetch_hf_papers import fetch_with_fallback, parse_papers
+import pytest
+
+from fetch_hf_papers import compute_dates, fetch_with_fallback, merge_papers, parse_papers
 
 
 def entry(arxiv_id, upvotes, github=None, summary="An  abstract\nwith  spaces."):
@@ -57,3 +60,44 @@ def test_fetch_with_fallback_goes_back_one_day_when_empty():
 
     day, papers, fallback = fetch_with_fallback(fetch, date(2026, 9, 24))
     assert (day, len(papers), fallback) == ("2026-09-23", 1, True)
+
+
+@pytest.fixture
+def jst(monkeypatch):
+    monkeypatch.setenv("TZ", "Asia/Tokyo")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def utc(*args):
+    return datetime(*args, tzinfo=timezone.utc)
+
+
+def test_compute_dates_defaults_to_today_utc(jst):
+    assert compute_dates([], utc(2026, 9, 28, 1, 0)) == [date(2026, 9, 28)]
+
+
+def test_compute_dates_runs_from_day_after_last_prior_commit_and_ignores_today(jst):
+    # Now: 09-28 09:00 JST. Last digest committed 09-25 07:54 JST (09-24 22:54 UTC).
+    now = utc(2026, 9, 28, 0, 0)
+    times = [utc(2026, 9, 27, 23, 30), utc(2026, 9, 24, 22, 54)]
+    assert compute_dates(times, now) == [date(2026, 9, 25), date(2026, 9, 26), date(2026, 9, 27), date(2026, 9, 28)]
+
+
+def test_compute_dates_single_date_when_last_commit_is_on_the_same_utc_date(jst):
+    # Committed 09-28 10:00 JST (01:00 UTC); now 09-29 07:00 JST (09-28 22:00 UTC).
+    assert compute_dates([utc(2026, 9, 28, 1, 0)], utc(2026, 9, 28, 22, 0)) == [date(2026, 9, 28)]
+
+
+def test_compute_dates_caps_lookback_at_seven_days(jst):
+    got = compute_dates([utc(2026, 8, 1, 3, 0)], utc(2026, 9, 28, 3, 0))
+    assert got == [date(2026, 9, d) for d in range(22, 29)]
+
+
+def test_merge_papers_dedupes_by_id_keeps_top_upvotes_and_limits():
+    day1 = parse_papers([entry("2609.1", 5), entry("2609.2", 1)])
+    day2 = parse_papers([entry("2609.1", 9), entry("2609.3", 7)])
+    merged = merge_papers([day1, day2], limit=2)
+    assert [(p["arxiv_id"], p["upvotes"]) for p in merged] == [("2609.1", 9), ("2609.3", 7)]
