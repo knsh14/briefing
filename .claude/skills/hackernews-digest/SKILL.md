@@ -44,7 +44,7 @@ uv run <skill-dir>/scripts/fetch_hackernews.py --out .cache/hackernews-YYYY-MM-D
 Read で `.cache/hackernews-YYYY-MM-DD.json` を読む。
 1回で読み切れないときは `offset` と `limit` を使って分けて読む。
 
-`since` が対象期間の開始時刻。
+`since` が対象期間の開始時刻（JST）。
 各記事は `title`、`url`、`hn_url`、`points`、`num_comments`、`comments`（HN の表示順で先頭の最大3件）を持つ。
 `keyword_matches` の記事は、さらに `matched_keywords` を持つ。
 

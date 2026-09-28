@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 
 # ---------------------------------------------------------------------------
@@ -33,6 +34,7 @@ MAX_COMMENTS_PAGES = 3  # max pages of comments to fetch (300 comments)
 DEFAULT_WINDOW = timedelta(hours=24)
 MAX_LOOKBACK = timedelta(days=7)
 STATE_MARGIN = timedelta(hours=1)  # the digest is committed after fetching and summarizing
+JST = ZoneInfo("Asia/Tokyo")
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +404,7 @@ def main() -> None:
 
     output = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "since": since,
+        "since": datetime.fromisoformat(since).astimezone(JST).strftime("%Y-%m-%d %H:%M JST"),
         "repos": results,
     }
 

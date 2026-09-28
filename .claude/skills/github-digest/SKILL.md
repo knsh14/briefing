@@ -59,7 +59,7 @@ uv run python <skill-dir>/scripts/fetch_github.py --repo {owner/repo} --state-di
 - 各 Issue/PR には title, body, comments, labels, state が含まれる
 - PR にはさらに pr_details (merged, additions, deletions), files, reviews が含まれる
 - エラーが発生したリポジトリは `error` フィールドに記録される
-- 出力 JSON の `since` が対象期間の開始時刻（UTC）
+- 出力 JSON の `since` が対象期間の開始時刻（JST）
 
 ### Step 3: サマリー生成・構成・保存
 

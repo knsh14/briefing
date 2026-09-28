@@ -29,6 +29,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from html import unescape
 
 
@@ -43,6 +44,7 @@ USER_AGENT = "briefing-digest/1.0 (+https://briefing.kamata.page/)"
 DEFAULT_WINDOW_SECONDS = 24 * 60 * 60
 MAX_LOOKBACK_SECONDS = 7 * 24 * 60 * 60
 STATE_MARGIN_SECONDS = 60 * 60  # the digest is committed after fetching and summarizing
+JST = ZoneInfo("Asia/Tokyo")
 HITS_PER_PAGE = 200
 TOP_N = 30
 MAX_KEYWORD_MATCHES = 20
@@ -271,7 +273,7 @@ def main(argv: list[str] | None = None) -> None:
     write_output(
         {
             "generated_at": datetime.fromtimestamp(now, timezone.utc).isoformat(),
-            "since": datetime.fromtimestamp(since_ts).astimezone().isoformat(timespec="minutes"),
+            "since": datetime.fromtimestamp(since_ts, JST).strftime("%Y-%m-%d %H:%M JST"),
             "top": top,
             "keyword_matches": matches,
             "errors": errors,
