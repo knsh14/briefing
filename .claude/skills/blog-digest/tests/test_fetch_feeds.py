@@ -333,3 +333,146 @@ def test_main_refuses_out_dir_with_our_files_plus_an_unrelated_file(tmp_path, mo
     assert "notes.md" in capsys.readouterr().err
     assert (out / "notes.md").read_text() == "not ours"
     assert (out / "01-a.txt").read_text() == "stale"
+
+
+# ---------------------------------------------------------------------------
+# next_data source
+# ---------------------------------------------------------------------------
+
+import json  # noqa: E402
+
+from fetch_feeds import (  # noqa: E402
+    extract_next_data_page,
+    next_data,
+    next_data_entries,
+    structured_text_to_text,
+)
+
+
+def _page(data: dict) -> str:
+    return f'<html><script id="__NEXT_DATA__" type="application/json">{json.dumps(data)}</script></html>'
+
+
+def _article(slug, day, category="Technology"):
+    return {
+        "slug": slug,
+        "articleDate": day,
+        "articleTitle": f"Title {slug}",
+        "articleDescription": f"About {slug}",
+        "category": category,
+    }
+
+
+LISTING = {
+    "props": {
+        "pageProps": {
+            "content": {
+                "featured": [{"journalArticle": _article("tech", "2026-09-22")}],
+                "cards": [
+                    {"journalArticle": _article("tech", "2026-09-22")},
+                    {"journalArticle": _article("party", "2026-09-23", "Culture")},
+                    {"journalArticle": _article("old", "2026-09-10")},
+                    {"slug": "about", "title": "Not an article"},
+                ],
+            }
+        }
+    }
+}
+
+ARTICLE = {
+    "props": {
+        "pageProps": {
+            "content": {
+                "journalArticle": {
+                    "richText": {
+                        "document": {
+                            "type": "root",
+                            "children": [
+                                {"type": "block", "item": "x"},
+                                {"type": "heading", "children": [{"type": "span", "value": "Head"}]},
+                                {"type": "paragraph", "children": [{"type": "span", "value": ""}]},
+                                {
+                                    "type": "paragraph",
+                                    "children": [
+                                        {"type": "span", "value": "See "},
+                                        {"type": "link", "children": [{"type": "span", "value": "the  docs"}]},
+                                        {"type": "span", "value": "."},
+                                    ],
+                                },
+                            ],
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+def test_next_data_raises_without_script():
+    with pytest.raises(ValueError):
+        next_data("<html></html>")
+
+
+def test_next_data_entries_dedupes_by_slug_and_builds_links():
+    entries = next_data_entries(next_data(_page(LISTING)), "https://z.example/journal")
+    assert sorted(e["link"] for e in entries) == [
+        "https://z.example/journal/old",
+        "https://z.example/journal/party",
+        "https://z.example/journal/tech",
+    ]
+    assert {e["summary"] for e in entries} >= {"About tech"}
+
+
+def test_next_data_entries_filters_categories():
+    entries = next_data_entries(LISTING, "https://z.example/journal/", ["Technology"])
+    assert sorted(e["title"] for e in entries) == ["Title old", "Title tech"]
+
+
+def test_next_data_entries_raises_when_no_articles():
+    with pytest.raises(ValueError):
+        next_data_entries({"props": {"slug": "x"}}, "https://z.example/journal")
+
+
+def test_next_data_entries_date_is_inclusive_from_local_midnight(tokyo_tz):
+    entries = next_data_entries(LISTING, "https://z.example/journal", ["Technology"])
+    items = select_entries(entries, date(2026, 9, 22), 5)
+    assert [i["title"] for i in items] == ["Title tech"]
+
+
+def test_structured_text_to_text_flattens_paragraphs_and_links():
+    doc = ARTICLE["props"]["pageProps"]["content"]["journalArticle"]["richText"]["document"]
+    assert structured_text_to_text(doc) == "Head\nSee the docs."
+
+
+def test_process_feed_next_data_source_uses_article_structured_text(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    pages = {"https://z.example/journal": _page(LISTING), "https://z.example/journal/tech": _page(ARTICLE)}
+    monkeypatch.setattr(fetch_feeds, "http_get_bytes", lambda url: pages[url].encode("utf-8"))
+    feed = {"name": "Z", "url": "https://z.example/journal", "source": "next_data", "categories": ["Technology"]}
+    result = fetch_feeds.process_feed(1, feed, date(2026, 9, 20), 5, str(tmp_path))
+    assert result["count"] == 1
+    text = (tmp_path / result["file"]).read_text()
+    assert "Link: https://z.example/journal/tech" in text
+    assert "Body-Source: page" in text
+    assert "See the docs." in text
+
+
+def test_process_feed_next_data_source_fails_loudly_on_redesign(tmp_path, monkeypatch):
+    import fetch_feeds
+
+    monkeypatch.setattr(fetch_feeds, "http_get_bytes", lambda url: b"<html>new site</html>")
+    feed = {"name": "Z", "url": "https://z.example/journal", "source": "next_data"}
+    with pytest.raises(ValueError):
+        fetch_feeds.process_feed(1, feed, date(2026, 9, 20), 5, str(tmp_path))
+
+
+def test_extract_next_data_page_returns_none_on_fetch_error(monkeypatch):
+    import fetch_feeds
+
+    def boom(url):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(fetch_feeds, "http_get_bytes", boom)
+    assert extract_next_data_page("https://z.example/journal/tech") is None

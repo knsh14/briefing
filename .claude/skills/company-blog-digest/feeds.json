@@ -17,6 +17,12 @@
     {"name": "NVIDIA Technical Blog", "url": "https://developer.nvidia.com/blog/feed/"},
     {"name": "Waymo", "url": "https://waymo.com/blog/rss.xml"},
     {
+      "name": "Zoox",
+      "url": "https://zoox.com/journal",
+      "source": "next_data",
+      "categories": ["Technology", "Safety", "News"]
+    },
+    {
       "name": "Wayve",
       "url": "https://wayve.ai/wp-content/themes/wayve/rss-feed.php",
       "include_links_from": [

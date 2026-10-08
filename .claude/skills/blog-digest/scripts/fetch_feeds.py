@@ -20,6 +20,11 @@ Output (in --out-dir, cleared first):
 (a partial run leaves no manifest); anything else is refused (exit 1), so a
 mistyped path cannot delete unrelated files.
 Progress and errors go to stderr.
+
+A feed with "source": "next_data" is a Next.js listing page instead of RSS/Atom.
+Its articles are the objects in __NEXT_DATA__ that carry slug, articleDate and
+articleTitle; an optional "categories" list keeps only those categories. Bodies
+come from the article page's structured text (DatoCMS "root" document).
 """
 
 import argparse
@@ -245,19 +250,102 @@ def fetch_allowed_links(page_urls: list[str]) -> set[str]:
     return allowed
 
 
+NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
+
+
+def next_data(html: str) -> dict:
+    """Return the page's __NEXT_DATA__ JSON. Raises ValueError if the page has none."""
+    match = NEXT_DATA_RE.search(html or "")
+    if not match:
+        raise ValueError("no __NEXT_DATA__ in page")
+    return json.loads(match.group(1))
+
+
+def _walk(node):
+    """Yield every dict in a JSON tree, depth first."""
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _walk(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _walk(value)
+
+
+def local_midnight_utc(day: date) -> time.struct_time:
+    """A date-only article is published at local midnight, matching how the period starts."""
+    return datetime.combine(day, dtime.min).astimezone().astimezone(timezone.utc).timetuple()
+
+
+def next_data_entries(data: dict, base_url: str, categories: list[str] | None = None) -> list[dict]:
+    """Turn the article objects in a listing page's __NEXT_DATA__ into feedparser-like entries.
+
+    Featured cards repeat articles, so entries are deduplicated by slug. Raises ValueError
+    when no article is found, so a site redesign fails loudly instead of yielding nothing.
+    """
+    articles = {}
+    for obj in _walk(data):
+        if obj.get("slug") and obj.get("articleDate") and obj.get("articleTitle"):
+            articles.setdefault(obj["slug"], obj)
+    if not articles:
+        raise ValueError("no articles (slug, articleDate, articleTitle) in __NEXT_DATA__")
+    base = base_url.rstrip("/") + "/"
+    entries = []
+    for slug, article in articles.items():
+        if categories is not None and article.get("category") not in categories:
+            continue
+        entries.append(
+            {
+                "title": article["articleTitle"],
+                "link": urllib.parse.urljoin(base, slug),
+                "published_parsed": local_midnight_utc(date.fromisoformat(article["articleDate"][:10])),
+                "summary": article.get("articleDescription") or "",
+            }
+        )
+    return entries
+
+
+def structured_text_to_text(document: dict) -> str:
+    """Flatten a DatoCMS structured-text document: one line per top-level paragraph or heading."""
+
+    def inline(node) -> str:
+        return node.get("value") or "".join(inline(child) for child in node.get("children", []))
+
+    lines = (" ".join(inline(child).split()) for child in document.get("children", []))
+    return "\n".join(line for line in lines if line)
+
+
+def extract_next_data_page(url: str) -> str | None:
+    """Article body from the page's structured text, else trafilatura. None on failure."""
+    try:
+        html = http_get_bytes(url).decode("utf-8", errors="replace")
+        texts = [structured_text_to_text(obj) for obj in _walk(next_data(html)) if obj.get("type") == "root"]
+        return max(texts, key=len, default="") or trafilatura.extract(html) or None
+    except Exception as e:  # noqa: BLE001 - fall back to the listing summary
+        print(f"  page extract failed {url}: {e}", file=sys.stderr)
+        return None
+
+
 def process_feed(index: int, feed: dict, since: date, max_items: int, out_dir: str) -> dict:
     name, url = feed["name"], feed["url"]
     print(f"Fetching {name}...", file=sys.stderr)
-    parsed = feedparser.parse(http_get_bytes(url))
-    if parsed.bozo and not parsed.entries:
-        raise ValueError(f"unparseable feed: {parsed.get('bozo_exception')}")
+    if feed.get("source") == "next_data":
+        html = http_get_bytes(url).decode("utf-8", errors="replace")
+        entries = next_data_entries(next_data(html), url, feed.get("categories"))
+        fetch_page = extract_next_data_page
+    else:
+        parsed = feedparser.parse(http_get_bytes(url))
+        if parsed.bozo and not parsed.entries:
+            raise ValueError(f"unparseable feed: {parsed.get('bozo_exception')}")
+        entries = parsed.entries
+        fetch_page = extract_page
     include_links_from = feed.get("include_links_from")
     allowed_links = fetch_allowed_links(include_links_from) if include_links_from else None
-    items = select_entries(parsed.entries, since, max_items, allowed_links)
+    items = select_entries(entries, since, max_items, allowed_links)
     for item in items:
         link = item["link"]
         item["body"], item["body_source"] = choose_body(
-            item.pop("feed_text"), item.pop("summary"), lambda: extract_page(link)
+            item.pop("feed_text"), item.pop("summary"), lambda: fetch_page(link)
         )
     file_name = f"{index:02d}-{slugify(name)}.txt"
     if items:
