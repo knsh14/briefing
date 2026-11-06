@@ -34,7 +34,7 @@
       },
       "no-unmatched-pair": true,
       "no-mix-dearu-desumasu": {
-        "preferInBody": "ですます",
+        "preferInBody": "である",
         "preferInHeader": "である",
         "strict": true
       }
